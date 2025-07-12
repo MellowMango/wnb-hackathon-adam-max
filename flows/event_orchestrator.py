@@ -1,19 +1,18 @@
 """
-Event Orchestrator Flow
+Event Orchestrator
 
 This module implements conditional event handling and routing for different types of requests.
-Uses CrewAI Flows for precise control over event-driven workflows.
+Simplified version without CrewAI Flow decorators.
 """
 
 import weave
 from typing import Dict, Any, List
-from crewai import Flow
 from crews.research_crew import ResearchCrew
 from crews.planning_crew import PlanningCrew
 from crews.content_crew import ContentCrew
 
 
-class EventOrchestrator(Flow):
+class EventOrchestrator:
     """
     An event-driven orchestrator that handles different types of requests.
     
@@ -25,14 +24,12 @@ class EventOrchestrator(Flow):
     """
     
     def __init__(self):
-        super().__init__()
         self.research_crew = ResearchCrew()
         self.planning_crew = PlanningCrew()
         self.content_crew = ContentCrew()
     
-    @Flow.listen("youtube_analysis")
     @weave.op()
-    async def handle_youtube_analysis(self, event_data: Dict[str, Any]):
+    def handle_youtube_analysis(self, event_data: Dict[str, Any]):
         """
         Handle YouTube content analysis requests.
         
@@ -46,6 +43,9 @@ class EventOrchestrator(Flow):
         location = event_data.get("location")
         date = event_data.get("date")
         
+        if not all([video_url, location, date]):
+            raise ValueError("Missing required fields: video_url, location, date")
+        
         # Analyze content
         result = self.research_crew.analyze_content(
             video_url=video_url,
@@ -53,21 +53,11 @@ class EventOrchestrator(Flow):
             date=date
         )
         
-        # Store result and trigger next event if needed
-        self.state.analysis_result = result
-        
-        if event_data.get("auto_plan", False):
-            await self.trigger("route_planning", {
-                "experiences": result.get("experiences", []),
-                "location": location,
-                "date": date
-            })
-        
+        print(f"✅ YouTube analysis complete")
         return result
     
-    @Flow.listen("experience_search")
     @weave.op()
-    async def handle_experience_search(self, event_data: Dict[str, Any]):
+    def handle_experience_search(self, event_data: Dict[str, Any]):
         """
         Handle experience search requests.
         
@@ -81,6 +71,9 @@ class EventOrchestrator(Flow):
         location = event_data.get("location")
         date = event_data.get("date")
         
+        if not all([query, location, date]):
+            raise ValueError("Missing required fields: query, location, date")
+        
         # Search for experiences
         result = self.research_crew.research_topics(
             topics=[query],
@@ -88,181 +81,154 @@ class EventOrchestrator(Flow):
             date=date
         )
         
-        self.state.search_result = result
-        
+        print(f"✅ Experience search complete")
         return result
     
-    @Flow.listen("route_planning")
     @weave.op()
-    async def handle_route_planning(self, event_data: Dict[str, Any]):
+    def handle_route_planning(self, event_data: Dict[str, Any]):
         """
         Handle route planning requests.
         
         Args:
-            event_data: Event data containing experiences, location, date
+            event_data: Event data containing experiences, start_location, date
         """
         
         print(f"🗺️  Handling route planning event")
         
         experiences = event_data.get("experiences", [])
-        location = event_data.get("location")
+        start_location = event_data.get("start_location")
         date = event_data.get("date")
+        duration = event_data.get("duration", "full-day")
+        transportation_mode = event_data.get("transportation_mode", "driving")
+        
+        if not all([experiences, start_location, date]):
+            raise ValueError("Missing required fields: experiences, start_location, date")
         
         # Plan routes and itinerary
         result = self.planning_crew.plan_complete_experience(
             experiences=experiences,
-            start_location=location,
+            start_location=start_location,
             date=date,
-            duration="full-day"
+            duration=duration,
+            transportation_mode=transportation_mode
         )
         
-        self.state.planning_result = result
-        
-        # Auto-trigger content creation if requested
-        if event_data.get("auto_content", False):
-            await self.trigger("content_creation", {
-                "itinerary": result,
-                "participants": event_data.get("participants", [])
-            })
-        
+        print(f"✅ Route planning complete")
         return result
     
-    @Flow.listen("content_creation")
     @weave.op()
-    async def handle_content_creation(self, event_data: Dict[str, Any]):
+    def handle_content_creation(self, event_data: Dict[str, Any]):
         """
         Handle content creation requests.
         
         Args:
-            event_data: Event data containing itinerary, participants
+            event_data: Event data containing itinerary, participants, theme
         """
         
         print(f"🎙️  Handling content creation event")
         
         itinerary = event_data.get("itinerary")
-        participants = event_data.get("participants", [])
-        theme = event_data.get("theme", "Adventure Experience")
+        participants = event_data.get("participants", ["example@email.com"])
+        podcast_theme = event_data.get("podcast_theme", "Adventure Experience")
+        voice_settings = event_data.get("voice_settings", {"voice": "default", "speed": 1.0})
+        
+        if not itinerary:
+            raise ValueError("Missing required field: itinerary")
         
         # Create content package
         result = self.content_crew.create_complete_content_package(
             itinerary=itinerary,
             participants=participants,
-            podcast_theme=theme
+            podcast_theme=podcast_theme,
+            voice_settings=voice_settings
         )
         
-        self.state.content_result = result
-        
+        print(f"✅ Content creation complete")
         return result
     
     @weave.op()
-    async def process_event(self, event_type: str, event_data: Dict[str, Any]) -> Dict[str, Any]:
+    def process_event(self, event_type: str, event_data: Dict[str, Any]):
         """
-        Process a single event by type.
+        Process an event based on its type.
         
         Args:
             event_type: Type of event to process
             event_data: Event data dictionary
             
         Returns:
-            Dictionary containing event processing results
+            Event processing result
         """
         
-        print(f"🚀 Processing event: {event_type}")
+        print(f"🎯 Processing {event_type} event")
         
-        # Trigger the appropriate event
-        await self.trigger(event_type, event_data)
-        
-        # Return current state
-        return {
-            "event_type": event_type,
-            "status": "processed",
-            "results": {
-                "analysis": getattr(self.state, 'analysis_result', None),
-                "search": getattr(self.state, 'search_result', None),
-                "planning": getattr(self.state, 'planning_result', None),
-                "content": getattr(self.state, 'content_result', None)
-            }
-        }
+        if event_type == "youtube_analysis":
+            return self.handle_youtube_analysis(event_data)
+        elif event_type == "experience_search":
+            return self.handle_experience_search(event_data)
+        elif event_type == "route_planning":
+            return self.handle_route_planning(event_data)
+        elif event_type == "content_creation":
+            return self.handle_content_creation(event_data)
+        else:
+            raise ValueError(f"Unknown event type: {event_type}")
     
     @weave.op()
-    async def process_batch_events(self, events: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def process_batch_events(self, events: List[Dict[str, Any]]):
         """
-        Process multiple events in sequence.
+        Process a batch of events in sequence.
         
         Args:
-            events: List of event dictionaries with 'type' and 'data' keys
+            events: List of events to process
             
         Returns:
-            Dictionary containing batch processing results
+            List of event processing results
         """
         
         print(f"📦 Processing batch of {len(events)} events")
         
         results = []
-        
-        for event in events:
-            event_type = event.get("type")
-            event_data = event.get("data", {})
+        for i, event in enumerate(events):
+            print(f"🔄 Processing event {i+1}/{len(events)}")
             
-            result = await self.process_event(event_type, event_data)
-            results.append(result)
+            event_type = event.get("event_type")
+            event_data = event.get("event_data", {})
+            
+            try:
+                result = self.process_event(event_type, event_data)
+                results.append({
+                    "event_index": i,
+                    "event_type": event_type,
+                    "status": "success",
+                    "result": result
+                })
+            except Exception as e:
+                print(f"❌ Event {i+1} failed: {e}")
+                results.append({
+                    "event_index": i,
+                    "event_type": event_type,
+                    "status": "error",
+                    "error": str(e)
+                })
         
-        return {
-            "batch_size": len(events),
-            "status": "completed",
-            "results": results
-        }
+        print(f"✅ Batch processing complete")
+        return results
 
 
 # Example usage and testing
 if __name__ == "__main__":
-    import asyncio
-    
     # Initialize Weave tracking
     weave.init("event-orchestrator-test")
     
-    async def test_orchestrator():
-        # Create orchestrator
-        orchestrator = EventOrchestrator()
-        
-        # Test single event
-        result = await orchestrator.process_event("youtube_analysis", {
-            "video_url": "https://youtube.com/watch?v=example",
-            "location": "San Francisco, CA",
-            "date": "2024-01-15",
-            "auto_plan": True
-        })
-        
-        print("Single Event Result:")
-        print(f"Status: {result.get('status')}")
-        
-        # Test batch events
-        events = [
-            {
-                "type": "experience_search",
-                "data": {
-                    "query": "photography workshops",
-                    "location": "San Francisco, CA",
-                    "date": "2024-01-15"
-                }
-            },
-            {
-                "type": "route_planning",
-                "data": {
-                    "experiences": [{"name": "Photo Workshop", "location": "Golden Gate Park"}],
-                    "location": "San Francisco, CA",
-                    "date": "2024-01-15"
-                }
-            }
-        ]
-        
-        batch_result = await orchestrator.process_batch_events(events)
-        
-        print(f"\nBatch Processing Result:")
-        print(f"Processed: {batch_result.get('batch_size')} events")
-        print(f"Status: {batch_result.get('status')}")
-        
-        return result
+    # Create orchestrator
+    orchestrator = EventOrchestrator()
     
-    # Run test
-    asyncio.run(test_orchestrator()) 
+    # Test single event
+    test_event_data = {
+        "video_url": "https://youtube.com/watch?v=example",
+        "location": "San Francisco, CA",
+        "date": "2024-01-15"
+    }
+    
+    result = orchestrator.process_event("youtube_analysis", test_event_data)
+    print("Event Processing Results:")
+    print(f"Status: Completed")

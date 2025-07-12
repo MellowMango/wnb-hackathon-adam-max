@@ -2,7 +2,7 @@
 Content Pipeline Flow
 
 This module implements a structured workflow for content creation from YouTube to itinerary.
-Simplified version without CrewAI Flow decorators.
+Uses CrewAI Flows for precise control over the execution pipeline.
 """
 
 import weave
@@ -54,12 +54,13 @@ class ContentPipeline:
         self.state["location"] = location
         self.state["date"] = date
         
-        print(f"✅ Content analysis complete")
+        print(f"✅ Content analysis complete - found {len(research_results.get('experiences', []))} experiences")
         
         return research_results
     
+    @Flow.listen("research_complete")
     @weave.op()
-    def plan_experience(self, research_results: Dict[str, Any]):
+    async def plan_experience(self, research_results: Dict[str, Any]):
         """
         Stage 2: Plan routes and create detailed itinerary.
         
@@ -74,27 +75,29 @@ class ContentPipeline:
         
         if not experiences:
             print("⚠️  No experiences found, creating basic itinerary")
-            experiences = [{"name": "Default Experience", "location": self.state["location"]}]
+            experiences = [{"name": "Default Experience", "location": self.state.location}]
         
         # Create comprehensive itinerary
         itinerary_results = self.planning_crew.plan_complete_experience(
             experiences=experiences,
-            start_location=self.state["location"],
-            date=self.state["date"],
+            start_location=self.state.location,
+            date=self.state.date,
             duration="full-day",
             transportation_mode="driving"
         )
         
         # Store planning results
-        self.state["itinerary_results"] = itinerary_results
-        self.state["experiences"] = experiences
+        self.state.itinerary_results = itinerary_results
+        self.state.experiences = experiences
         
         print(f"✅ Experience planning complete - created itinerary with {len(experiences)} stops")
         
-        return itinerary_results
+        # Trigger content creation
+        await self.trigger("planning_complete", itinerary_results)
     
+    @Flow.listen("planning_complete")
     @weave.op()
-    def create_content(self, itinerary_results: Dict[str, Any]):
+    async def create_content(self, itinerary_results: Dict[str, Any]):
         """
         Stage 3: Create podcast content and calendar events.
         
@@ -105,25 +108,27 @@ class ContentPipeline:
         print(f"🎙️  Starting content creation")
         
         # Extract participants from state or use defaults
-        participants = self.state.get('participants', ["example@email.com"])
+        participants = getattr(self.state, 'participants', ["example@email.com"])
         
         # Create complete content package
         content_results = self.content_crew.create_complete_content_package(
             itinerary=itinerary_results,
             participants=participants,
-            podcast_theme=f"Adventure Experience in {self.state['location']}",
+            podcast_theme=f"Adventure Experience in {self.state.location}",
             voice_settings={"voice": "default", "speed": 1.0}
         )
         
         # Store final results
-        self.state["content_results"] = content_results
+        self.state.content_results = content_results
         
         print(f"✅ Content creation complete - podcast and calendar ready")
         
-        return content_results
+        # Trigger completion
+        await self.trigger("pipeline_complete", content_results)
     
+    @Flow.listen("pipeline_complete")
     @weave.op()
-    def finalize_pipeline(self, content_results: Dict[str, Any]):
+    async def finalize_pipeline(self, content_results: Dict[str, Any]):
         """
         Stage 4: Finalize pipeline and prepare output.
         
@@ -135,18 +140,18 @@ class ContentPipeline:
         
         # Compile final output
         final_output = {
-            "pipeline_id": f"pipeline_{self.state['date']}_{hash(self.state['video_url'])}",
+            "pipeline_id": f"pipeline_{self.state.date}_{hash(self.state.video_url)}",
             "input": {
-                "video_url": self.state["video_url"],
-                "location": self.state["location"],
-                "date": self.state["date"]
+                "video_url": self.state.video_url,
+                "location": self.state.location,
+                "date": self.state.date
             },
-            "research": self.state["research_results"],
-            "planning": self.state["itinerary_results"],
-            "content": self.state["content_results"],
+            "research": self.state.research_results,
+            "planning": self.state.itinerary_results,
+            "content": self.state.content_results,
             "status": "completed",
             "artifacts": {
-                "itinerary": self.state["itinerary_results"],
+                "itinerary": self.state.itinerary_results,
                 "podcast_script": content_results.get("podcast_script"),
                 "audio_files": content_results.get("audio_files"),
                 "calendar_events": content_results.get("calendar_events")
@@ -154,15 +159,15 @@ class ContentPipeline:
         }
         
         # Store final output
-        self.state["final_output"] = final_output
+        self.state.final_output = final_output
         
         print(f"✅ Pipeline finalized - all artifacts ready")
         
         return final_output
     
     @weave.op()
-    def run_complete_pipeline(self, video_url: str, location: str, date: str, 
-                             participants: List[str] = None) -> Dict[str, Any]:
+    async def run_complete_pipeline(self, video_url: str, location: str, date: str, 
+                                   participants: List[str] = None) -> Dict[str, Any]:
         """
         Run the complete content pipeline from start to finish.
         
@@ -182,18 +187,22 @@ class ContentPipeline:
         print(f"   Date: {date}")
         
         # Set initial state
-        self.state["participants"] = participants or ["example@email.com"]
+        self.state.participants = participants or ["example@email.com"]
         
-        # Run pipeline stages sequentially
-        research_results = self.analyze_content(video_url, location, date)
-        itinerary_results = self.plan_experience(research_results)
-        content_results = self.create_content(itinerary_results)
-        final_output = self.finalize_pipeline(content_results)
+        # Start the pipeline
+        await self.trigger("pipeline_start", {
+            "video_url": video_url,
+            "location": location,
+            "date": date
+        })
         
-        return final_output
+        # Wait for completion (in real implementation, this would be event-driven)
+        await self.analyze_content(video_url, location, date)
+        
+        return self.state.final_output
     
     @weave.op()
-    def run_research_only(self, video_url: str, location: str, date: str) -> Dict[str, Any]:
+    async def run_research_only(self, video_url: str, location: str, date: str) -> Dict[str, Any]:
         """
         Run only the research stage of the pipeline.
         
@@ -217,7 +226,7 @@ class ContentPipeline:
         return research_results
     
     @weave.op()
-    def run_planning_only(self, experiences: List[Dict], location: str, date: str) -> Dict[str, Any]:
+    async def run_planning_only(self, experiences: List[Dict], location: str, date: str) -> Dict[str, Any]:
         """
         Run only the planning stage of the pipeline.
         
@@ -244,18 +253,28 @@ class ContentPipeline:
 
 # Example usage and testing
 if __name__ == "__main__":
+    import asyncio
+    
     # Initialize Weave tracking
     weave.init("content-pipeline-test")
     
-    # Create pipeline
-    pipeline = ContentPipeline()
+    async def test_pipeline():
+        # Create pipeline
+        pipeline = ContentPipeline()
+        
+        # Run complete pipeline
+        result = await pipeline.run_complete_pipeline(
+            video_url="https://youtube.com/watch?v=example",
+            location="San Francisco, CA",
+            date="2024-01-15",
+            participants=["test@example.com"]
+        )
+        
+        print("Pipeline Results:")
+        print(f"Status: {result.get('status')}")
+        print(f"Artifacts: {list(result.get('artifacts', {}).keys())}")
+        
+        return result
     
-    # Run research only test
-    result = pipeline.run_research_only(
-        video_url="https://youtube.com/watch?v=example",
-        location="San Francisco, CA",
-        date="2024-01-15"
-    )
-    
-    print("Pipeline Results:")
-    print(f"Research completed: {bool(result)}")
+    # Run test
+    asyncio.run(test_pipeline()) 

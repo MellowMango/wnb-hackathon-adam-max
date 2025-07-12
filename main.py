@@ -16,7 +16,7 @@ from datetime import datetime
 # Add current directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from weave import setup_weave_tracing
+from weave_custom import setup_weave_tracing
 from crews import ResearchCrew, PlanningCrew, ContentCrew
 from flows import ContentPipeline, EventOrchestrator
 
@@ -271,8 +271,8 @@ async def main():
                        help="Analyze YouTube content")
     parser.add_argument("--search", nargs=3, metavar=("QUERY", "LOCATION", "DATE"), 
                        help="Search for experiences")
-    parser.add_argument("--pipeline", nargs="+", metavar=("VIDEO_URL", "LOCATION", "DATE", "EMAILS"), 
-                       help="Run complete pipeline")
+    parser.add_argument("--pipeline", nargs="+", metavar="ARGS",
+                       help="Run complete pipeline (VIDEO_URL LOCATION DATE [EMAILS...])")
     
     args = parser.parse_args()
     

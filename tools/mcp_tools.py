@@ -7,6 +7,7 @@ Each tool provides a standardized interface to external services.
 
 import os
 import json
+import requests
 from typing import Dict, Any, List, Optional
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
@@ -28,11 +29,6 @@ class YouTubeMCPTool(BaseTool):
     - Analyze content themes and topics
     - Extract actionable insights for experience planning
     """
-    
-    def __init__(self):
-        super().__init__()
-        self.server_url = os.getenv("YOUTUBE_MCP_SERVER_URL", "stdio://youtube-mcp-server")
-        self.api_key = os.getenv("YOUTUBE_API_KEY", "")
     
     def _run(self, video_url: str, analysis_type: str = "full") -> str:
         """
@@ -85,10 +81,8 @@ class ExaMCPTool(BaseTool):
     - Get event details and availability
     """
     
-    def __init__(self):
-        super().__init__()
-        self.server_url = os.getenv("EXA_MCP_SERVER_URL", "http://localhost:8001/mcp")
-        self.api_key = os.getenv("EXA_API_KEY", "")
+    server_url: str = Field(default_factory=lambda: os.getenv("EXA_MCP_SERVER_URL", "http://localhost:8001/mcp"))
+    api_key: str = Field(default_factory=lambda: os.getenv("EXA_API_KEY", ""))
     
     def _run(self, query: str, location: str, date: str = None, limit: int = 10) -> str:
         """
@@ -150,19 +144,19 @@ class MapsMCPTool(BaseTool):
     
     name: str = "maps_mcp"
     description: str = """
-    Plan routes and get navigation information.
+    Plan routes and get navigation information with shareable links.
     
     Capabilities:
     - Calculate optimal routes between locations
     - Get driving, walking, and transit directions
+    - Generate shareable Google Maps links for calendar integration
+    - Create complete itinerary routes with waypoints
     - Estimate travel times and distances
     - Find parking and accessibility information
     """
     
-    def __init__(self):
-        super().__init__()
-        self.server_url = os.getenv("MAPS_MCP_SERVER_URL", "http://localhost:8002/mcp")
-        self.api_key = os.getenv("GOOGLE_MAPS_API_KEY", "")
+    server_url: str = Field(default_factory=lambda: os.getenv("MAPS_MCP_SERVER_URL", "http://localhost:8003/mcp"))
+    api_key: str = Field(default_factory=lambda: os.getenv("GOOGLE_MAPS_API_KEY", ""))
     
     def _run(self, origin: str, destination: str, mode: str = "driving", 
              waypoints: List[str] = None) -> str:
@@ -179,35 +173,116 @@ class MapsMCPTool(BaseTool):
             JSON string with route information
         """
         
-        # Placeholder implementation
-        placeholder_result = {
-            "origin": origin,
-            "destination": destination,
-            "mode": mode,
-            "waypoints": waypoints or [],
-            "route": {
-                "distance": "12.5 miles",
-                "duration": "25 minutes",
-                "steps": [
-                    {"instruction": "Head north on Main St", "distance": "0.5 miles", "duration": "2 minutes"},
-                    {"instruction": "Turn right onto Highway 1", "distance": "8.2 miles", "duration": "15 minutes"},
-                    {"instruction": "Turn left onto Destination Ave", "distance": "3.8 miles", "duration": "8 minutes"}
-                ]
-            },
-            "alternatives": [
-                {
-                    "distance": "14.1 miles",
-                    "duration": "28 minutes",
-                    "description": "Scenic route via coastal highway"
+        try:
+            # Prepare request data
+            request_data = {
+                "method": "directions",
+                "args": {
+                    "origin": origin,
+                    "destination": destination,
+                    "mode": mode,
+                    "waypoints": waypoints or []
                 }
-            ],
-            "traffic_info": {
-                "current_delay": "5 minutes",
-                "best_departure_time": "9:00 AM"
             }
-        }
+            
+            # Call MCP server
+            response = requests.post(
+                f"{self.server_url}/run",
+                json=request_data,
+                timeout=30
+            )
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get("success"):
+                return json.dumps(result["data"], indent=2)
+            else:
+                return json.dumps({
+                    "error": result.get("error", "Unknown error"),
+                    "fallback": True,
+                    "message": "Using fallback data due to MCP server error"
+                }, indent=2)
+                
+        except Exception as e:
+            # Fallback to placeholder on error
+            fallback_result = {
+                "origin": origin,
+                "destination": destination,
+                "mode": mode,
+                "waypoints": waypoints or [],
+                "error": str(e),
+                "fallback": True,
+                "route": {
+                    "distance": "Estimated 12.5 miles",
+                    "duration": "Estimated 25 minutes",
+                    "steps": [
+                        {"instruction": "Route calculation failed - using estimated data", 
+                         "distance": "N/A", "duration": "N/A"}
+                    ]
+                }
+            }
+            
+            return json.dumps(fallback_result, indent=2)
+    
+    def generate_itinerary_route(self, experiences: List[Dict], start_location: str, 
+                                mode: str = "driving", optimize: bool = True) -> str:
+        """
+        Generate a complete itinerary route with shareable links for calendar integration.
         
-        return json.dumps(placeholder_result, indent=2)
+        Args:
+            experiences: List of experience dictionaries with locations
+            start_location: Starting location
+            mode: Transportation mode (driving, walking, transit)
+            optimize: Whether to optimize the route order
+            
+        Returns:
+            JSON string with complete route information and shareable links
+        """
+        
+        try:
+            # Prepare request data
+            request_data = {
+                "method": "generate_itinerary_route",
+                "args": {
+                    "experiences": experiences,
+                    "start_location": start_location,
+                    "mode": mode,
+                    "optimize": optimize
+                }
+            }
+            
+            # Call MCP server
+            response = requests.post(
+                f"{self.server_url}/run",
+                json=request_data,
+                timeout=30
+            )
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get("success"):
+                return json.dumps(result["data"], indent=2)
+            else:
+                return json.dumps({
+                    "error": result.get("error", "Unknown error"),
+                    "fallback": True,
+                    "message": "Failed to generate itinerary route"
+                }, indent=2)
+                
+        except Exception as e:
+            # Fallback to basic route info on error
+            fallback_result = {
+                "error": str(e),
+                "fallback": True,
+                "experiences": experiences,
+                "start_location": start_location,
+                "message": "Could not generate shareable links - using basic route info",
+                "basic_route_link": f"https://www.google.com/maps/search/{start_location.replace(' ', '+')}"
+            }
+            
+            return json.dumps(fallback_result, indent=2)
 
 
 class CalendarMCPTool(BaseTool):
@@ -227,10 +302,8 @@ class CalendarMCPTool(BaseTool):
     - Set reminders and notifications
     """
     
-    def __init__(self):
-        super().__init__()
-        self.server_url = os.getenv("CALENDAR_MCP_SERVER_URL", "http://localhost:8003/mcp")
-        self.api_key = os.getenv("GOOGLE_CALENDAR_API_KEY", "")
+    server_url: str = Field(default_factory=lambda: os.getenv("CALENDAR_MCP_SERVER_URL", "http://localhost:8004/mcp"))
+    api_key: str = Field(default_factory=lambda: os.getenv("GOOGLE_CALENDAR_API_KEY", ""))
     
     def _run(self, action: str, event_data: Dict[str, Any] = None, 
              participants: List[str] = None) -> str:
@@ -280,10 +353,8 @@ class TTSMCPTool(BaseTool):
     - Export in various audio formats
     """
     
-    def __init__(self):
-        super().__init__()
-        self.server_url = os.getenv("TTS_MCP_SERVER_URL", "http://localhost:8004/mcp")
-        self.api_key = os.getenv("ELEVENLABS_API_KEY", "")
+    server_url: str = Field(default_factory=lambda: os.getenv("TTS_MCP_SERVER_URL", "http://localhost:8005/mcp"))
+    api_key: str = Field(default_factory=lambda: os.getenv("ELEVENLABS_API_KEY", ""))
     
     def _run(self, text: str, voice: str = "default", settings: Dict[str, Any] = None) -> str:
         """

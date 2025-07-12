@@ -3,29 +3,34 @@
 
 # Global LLM settings
 llm:
-  default_model: "gpt-4"
-  fallback_model: "gpt-3.5-turbo"
+  default_model: "gemini-2.5-flash"
+  fallback_model: "gemini-1.5-flash"
   temperature: 0.7
   max_tokens: 2000
   timeout: 30
   
 # Model-specific settings
 models:
-  gpt-4:
-    provider: "openai"
+  gemini-2.5-flash:
+    provider: "google"
     temperature: 0.7
     max_tokens: 4000
     top_p: 1.0
-    frequency_penalty: 0.0
-    presence_penalty: 0.0
+    thinking_budget: 0  # Disable thinking for faster responses
     
-  gpt-3.5-turbo:
-    provider: "openai"
+  gemini-1.5-flash:
+    provider: "google"
     temperature: 0.5
     max_tokens: 2000
     top_p: 1.0
-    frequency_penalty: 0.0
-    presence_penalty: 0.0
+    thinking_budget: 0
+    
+  gemini-2.5-pro:
+    provider: "google"
+    temperature: 0.7
+    max_tokens: 8000
+    top_p: 1.0
+    # Note: thinking cannot be disabled on Gemini 2.5 Pro
     
   claude-3-sonnet:
     provider: "anthropic"
@@ -47,14 +52,14 @@ crews:
     agents:
       youtube_analyst:
         role: "YouTube Content Analyst"
-        model: "gpt-4"
+        model: "gemini-2.5-flash"
         max_iter: 5
         allow_delegation: false
         verbose: true
         
       local_researcher:
         role: "Local Experience Researcher"
-        model: "gpt-4"
+        model: "gemini-2.5-flash"
         max_iter: 3
         allow_delegation: false
         verbose: true
@@ -71,14 +76,14 @@ crews:
     agents:
       route_planner:
         role: "Route Planning Specialist"
-        model: "gpt-4"
+        model: "gemini-2.5-flash"
         max_iter: 3
         allow_delegation: false
         verbose: true
         
       itinerary_designer:
         role: "Itinerary Designer"
-        model: "gpt-4"
+        model: "gemini-2.5-flash"
         max_iter: 5
         allow_delegation: false
         verbose: true
@@ -95,14 +100,14 @@ crews:
     agents:
       podcast_creator:
         role: "Podcast Content Creator"
-        model: "gpt-4"
+        model: "gemini-2.5-flash"
         max_iter: 5
         allow_delegation: false
         verbose: true
         
       calendar_manager:
         role: "Calendar & Scheduling Manager"
-        model: "gpt-3.5-turbo"
+        model: "gemini-1.5-flash"
         max_iter: 3
         allow_delegation: false
         verbose: true

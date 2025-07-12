@@ -5,8 +5,11 @@ This crew handles content creation and calendar management.
 Agents work together to create engaging podcast content and manage calendar invitations.
 """
 
+import os
 import weave
+
 from crewai import Agent, Task, Crew, Process
+from crewai.llm import LLM
 from tools.mcp_tools import TTSMCPTool, CalendarMCPTool
 
 
@@ -22,6 +25,12 @@ class ContentCrew:
     def __init__(self):
         self.tts_tool = TTSMCPTool()
         self.calendar_tool = CalendarMCPTool()
+        # Configure Gemini LLM
+        self.gemini_llm = LLM(
+            model="gemini/gemini-2.0-flash-exp",
+            api_key=os.getenv("GEMINI_API_KEY"),
+            temperature=0.7
+        )
         self._setup_agents()
     
     def _setup_agents(self):
@@ -34,6 +43,7 @@ class ContentCrew:
             You excel at crafting compelling narratives, creating engaging scripts,
             and producing high-quality audio content that tells stories and shares experiences.""",
             tools=[self.tts_tool],
+            llm=self.gemini_llm,
             verbose=True,
             allow_delegation=False
         )
@@ -45,6 +55,7 @@ class ContentCrew:
             You understand the importance of proper scheduling, reminders, and making sure
             all participants are properly informed about events and activities.""",
             tools=[self.calendar_tool],
+            llm=self.gemini_llm,
             verbose=True,
             allow_delegation=False
         )
@@ -163,17 +174,24 @@ class ContentCrew:
             
             For each itinerary item, create events with:
             1. Clear, descriptive titles
-            2. Detailed descriptions with addresses and instructions
-            3. Proper start and end times
-            4. Location information
-            5. Reminder settings
-            6. Participant invitations
-            7. Backup contact information
+            2. Detailed descriptions including Google Maps navigation links
+            3. Proper start and end times with travel buffers
+            4. Location information with clickable map links
+            5. Travel time estimates and directions
+            6. Reminder settings (15 min before each event)
+            7. Participant invitations
+            8. Backup contact information
             
-            Include buffer time between events and travel considerations.
+            CRITICAL: Extract and include shareable Google Maps links from the itinerary.
+            Each calendar event description should contain clickable navigation links like:
+            "📍 Location: [Venue Name]
+             🗺️ Directions: [Google Maps Link]
+             ⏱️ Travel Time: [Duration] from previous location"
+            
+            Make navigation seamless for participants.
             """,
             agent=self.calendar_manager,
-            expected_output="Calendar events with invitations and logistics details"
+            expected_output="Calendar events with embedded Google Maps navigation links and logistics details"
         )
         
         crew = Crew(
@@ -271,15 +289,23 @@ class ContentCrew:
             context=[script_task]
         )
         
-        # Calendar events creation
+        # Calendar events creation with navigation links
         calendar_task = Task(
             description=f"""
             Create calendar events for the itinerary participants: {participants}
-            Include all necessary details and logistics.
-            Coordinate with the podcast content timeline.
+            
+            CRITICAL REQUIREMENTS:
+            1. Extract shareable Google Maps links from the itinerary data
+            2. Include clickable navigation links in each calendar event description
+            3. Add travel time estimates between locations
+            4. Format descriptions for mobile and desktop viewing
+            5. Coordinate timing with the podcast content timeline
+            6. Set appropriate reminders and notifications
+            
+            Each event must have clear navigation instructions with working Google Maps links.
             """,
             agent=self.calendar_manager,
-            expected_output="Calendar events with invitations ready to send"
+            expected_output="Calendar events with embedded Google Maps navigation links ready to send"
         )
         
         crew = Crew(

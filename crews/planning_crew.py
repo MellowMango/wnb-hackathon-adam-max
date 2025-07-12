@@ -5,8 +5,11 @@ This crew handles route planning and itinerary creation.
 Agents work together to create optimized travel routes and comprehensive itineraries.
 """
 
+import os
 import weave
+
 from crewai import Agent, Task, Crew, Process
+from crewai.llm import LLM
 from tools.mcp_tools import MapsMCPTool, ExaMCPTool
 
 
@@ -22,6 +25,12 @@ class PlanningCrew:
     def __init__(self):
         self.maps_tool = MapsMCPTool()
         self.exa_tool = ExaMCPTool()
+        # Configure Gemini LLM
+        self.gemini_llm = LLM(
+            model="gemini/gemini-2.0-flash-exp",
+            api_key=os.getenv("GEMINI_API_KEY"),
+            temperature=0.7
+        )
         self._setup_agents()
     
     def _setup_agents(self):
@@ -34,6 +43,7 @@ class PlanningCrew:
             You understand different transportation modes, traffic patterns, and can create
             efficient routes that maximize time and minimize travel stress.""",
             tools=[self.maps_tool],
+            llm=self.gemini_llm,
             verbose=True,
             allow_delegation=False
         )
@@ -45,6 +55,7 @@ class PlanningCrew:
             activities, travel time, and personal preferences. You understand timing,
             logistics, and how to create memorable experiences.""",
             tools=[self.exa_tool],
+            llm=self.gemini_llm,
             verbose=True,
             allow_delegation=False
         )
@@ -161,33 +172,44 @@ class PlanningCrew:
         # Extract locations from experiences
         locations = [exp.get('location', exp.get('address', '')) for exp in experiences if exp.get('location')]
         
-        # Route planning task
+        # Route planning task with shareable links
         route_task = Task(
             description=f"""
             Plan an optimized route from {start_location} through these experience locations:
             {', '.join(locations)}
             
             Transportation: {transportation_mode}
-            Consider timing, traffic, and logistics.
+            
+            IMPORTANT: Use the generate_itinerary_route method to create:
+            1. Optimized route order for efficiency
+            2. Individual shareable Google Maps links for each leg
+            3. Complete route link for the entire journey
+            4. Calendar-ready descriptions with links
+            5. Accurate travel times and distances
+            
+            The output must include shareable links that can be embedded in calendar invitations.
             """,
             agent=self.route_planner,
-            expected_output="Optimized route with travel times and directions"
+            expected_output="Complete route with shareable Google Maps links for calendar integration"
         )
         
         # Itinerary creation task
         itinerary_task = Task(
             description=f"""
-            Using the route information, create a {duration} itinerary for {date} that:
-            1. Incorporates the planned route
-            2. Schedules each experience appropriately
-            3. Includes travel times between locations
-            4. Accounts for user preferences: {preferences or 'None'}
-            5. Provides a complete minute-by-minute schedule
+            Using the route information with shareable links, create a {duration} itinerary for {date} that:
+            1. Incorporates the planned route with Google Maps links
+            2. Schedules each experience appropriately with travel buffers
+            3. Includes individual shareable links for each travel segment
+            4. Provides calendar-ready event descriptions with navigation links
+            5. Accounts for user preferences: {preferences or 'None'}
+            6. Creates a complete minute-by-minute schedule
+            7. Formats information for easy calendar integration
             
-            Make it practical and enjoyable.
+            IMPORTANT: Preserve all shareable Google Maps links from the route planning for calendar integration.
+            Each experience should have associated navigation links that can be clicked from calendar invites.
             """,
             agent=self.itinerary_designer,
-            expected_output="Complete itinerary with integrated route and timing",
+            expected_output="Complete itinerary with shareable Google Maps links ready for calendar integration",
             context=[route_task]  # Depends on route planning
         )
         

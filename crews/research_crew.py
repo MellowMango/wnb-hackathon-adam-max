@@ -5,8 +5,11 @@ This crew handles content analysis and local experience discovery.
 Agents work together to extract insights from YouTube content and find relevant local experiences.
 """
 
+import os
 import weave
+
 from crewai import Agent, Task, Crew, Process
+from crewai.llm import LLM
 from tools.mcp_tools import YouTubeMCPTool, ExaMCPTool
 
 
@@ -22,6 +25,12 @@ class ResearchCrew:
     def __init__(self):
         self.youtube_tool = YouTubeMCPTool()
         self.exa_tool = ExaMCPTool()
+        # Configure Gemini LLM
+        self.gemini_llm = LLM(
+            model="gemini/gemini-2.0-flash-exp",
+            api_key=os.getenv("GEMINI_API_KEY"),
+            temperature=0.7
+        )
         self._setup_agents()
     
     def _setup_agents(self):
@@ -34,6 +43,7 @@ class ResearchCrew:
             You can identify main topics, key themes, emotional context, and actionable information
             that can be used to plan real-world experiences.""",
             tools=[self.youtube_tool],
+            llm=self.gemini_llm,
             verbose=True,
             allow_delegation=False
         )
@@ -45,6 +55,7 @@ class ResearchCrew:
             You excel at connecting abstract themes and interests to concrete, available
             experiences in specific locations and timeframes.""",
             tools=[self.exa_tool],
+            llm=self.gemini_llm,
             verbose=True,
             allow_delegation=False
         )

@@ -1,4 +1,4 @@
-# 🎬 Adventure Transformation System
+# 🎬 DueTube
 
 Transform passive YouTube content into active real-world micro-adventures! This system uses specialized CrewAI agents to analyze video transcripts and create personalized, location-based experiences with complete logistics, audio guides, and calendar integration.
 

@@ -7,7 +7,7 @@ Agents work together to extract insights from YouTube content and find relevant 
 
 import weave
 from crewai import Agent, Task, Crew, Process
-from tools.mcp_tools import YouTubeMCPTool, ExaMCPTool
+from tools.mcp_tools import YouTubeMCPTool
 
 
 class ResearchCrew:
@@ -21,7 +21,6 @@ class ResearchCrew:
     
     def __init__(self):
         self.youtube_tool = YouTubeMCPTool()
-        self.exa_tool = ExaMCPTool()
         self._setup_agents()
     
     def _setup_agents(self):
@@ -43,8 +42,9 @@ class ResearchCrew:
             goal="Find relevant local events, activities, and experiences based on content themes",
             backstory="""You are a specialist in discovering local activities and experiences.
             You excel at connecting abstract themes and interests to concrete, available
-            experiences in specific locations and timeframes.""",
-            tools=[self.exa_tool],
+            experiences in specific locations and timeframes. You use your knowledge and reasoning
+            to suggest relevant activities based on content analysis.""",
+            tools=[],  # No tools, relies on knowledge and reasoning
             verbose=True,
             allow_delegation=False
         )
@@ -81,18 +81,18 @@ class ResearchCrew:
         
         local_research_task = Task(
             description=f"""
-            Based on the YouTube content analysis, find relevant local experiences in {location} on {date}.
+            Based on the YouTube content analysis, suggest relevant local experiences in {location} on {date}.
             
-            Focus on:
+            Use your knowledge to suggest:
             1. Activities that match the content themes
-            2. Events happening on the specified date
+            2. Types of events commonly happening on such dates
             3. Experiences that align with the emotional context
             4. Opportunities for hands-on engagement
             
-            Rank results by relevance and provide practical details.
+            Rank suggestions by relevance and provide practical details based on your knowledge.
             """,
             agent=self.local_researcher,
-            expected_output="Ranked list of local experiences with descriptions, locations, times, and relevance scores",
+            expected_output="Ranked list of local experience suggestions with descriptions, typical locations, and relevance scores",
             context=[content_analysis_task]  # Depends on content analysis
         )
         
@@ -124,19 +124,19 @@ class ResearchCrew:
         
         research_task = Task(
             description=f"""
-            Research local experiences and events in {location} on {date} related to these topics:
+            Suggest local experiences and events in {location} on {date} related to these topics:
             {', '.join(topics)}
             
-            Find:
+            Based on your knowledge, suggest:
             1. Events and activities matching these topics
             2. Venues and locations of interest
-            3. Timing and availability information
-            4. Cost and booking requirements
+            3. Typical timing and availability information
+            4. General cost ranges and booking requirements
             
             Provide a comprehensive list ranked by relevance.
             """,
             agent=self.local_researcher,
-            expected_output="Detailed list of experiences with all practical information"
+            expected_output="Detailed list of experience suggestions with all practical information"
         )
         
         crew = Crew(

@@ -8,16 +8,20 @@ This is a CrewAI-based AI agent system that creates content pipelines from YouTu
 
 ## Architecture
 
-The system follows a 3-tier architecture:
+The system follows proper CrewAI modular architecture:
 
-1. **Crews** (`crews/`): CrewAI agents that handle domain-specific tasks
-   - `ResearchCrew`: Analyzes YouTube content and discovers local experiences
-   - `PlanningCrew`: Creates routes and itineraries
-   - `ContentCrew`: Generates podcasts and manages calendar events
+1. **Individual Agent Modules** (`agents/`): Specialized, reusable agents
+   - `youtube_analyst.py`: Analyzes YouTube content and extracts insights
+   - `local_researcher.py`: Discovers local experiences and events
+   - `route_planner.py`: Creates optimized routes with shareable Google Maps links
+   - `itinerary_designer.py`: Designs comprehensive itineraries with navigation
+   - `podcast_creator.py`: Creates podcast scripts and audio content
+   - `calendar_manager.py`: Manages calendar events with embedded maps
 
-2. **Flows** (`flows/`): Orchestration layer using CrewAI Flows
-   - `ContentPipeline`: Complete workflow from video analysis to content creation
-   - `EventOrchestrator`: Event-driven coordination between crews
+2. **Central Orchestrator** (`crew.py`): Air traffic controller for all workflows
+   - `ContentCreationCrew`: Main orchestrator class that coordinates all agents
+   - Imports agents from individual modules for clean separation
+   - Defines high-level workflows and task coordination
 
 3. **MCP Tools** (`tools/mcp_tools.py`): CrewAI tool wrappers for external services
    - `YouTubeMCPTool`: Video analysis and transcript extraction
@@ -73,14 +77,20 @@ python weave_example.py
 python setup.py
 ```
 
-### Testing Individual Components
+### Testing
 
 ```bash
-# Test research crew
-python -m crews.research_crew
+# Run main test suite
+python test.py
 
-# Test content pipeline
-python -m flows.content_pipeline
+# Test central orchestrator with all agents
+python crew.py
+
+# Test main application interface
+python main.py
+
+# Test individual agent imports
+python -c "from agents.youtube_analyst import youtube_analyst; print(youtube_analyst.role)"
 
 # Test MCP tools
 python -m tools.mcp_tools
@@ -108,17 +118,53 @@ Required environment variables (see `.env.example`):
 
 ## Code Patterns
 
-### CrewAI Integration
+### Proper CrewAI Structure
 
-All crew operations are decorated with `@weave.op()` for automatic tracing:
+The system follows the standard CrewAI pattern with modular agents and central orchestration:
 
 ```python
-@weave.op()
-def analyze_content(self, video_url: str, location: str, date: str) -> dict:
-    # Crew operations automatically traced
-    result = crew.kickoff()
-    return result
+# crew.py - Central orchestrator (air traffic controller)
+from agents.youtube_analyst import youtube_analyst
+from agents.local_researcher import local_researcher
+from crewai import Crew, Task
+
+class ContentCreationCrew:
+    def __init__(self):
+        self.crew = Crew(
+            agents=[youtube_analyst, local_researcher, ...],
+            tasks=[],  # Tasks defined dynamically
+            process=Process.sequential
+        )
+    
+    @weave.op()
+    def analyze_content(self, video_url: str, location: str, date: str):
+        # Define workflow tasks and execute
+        return self._execute_workflow([analysis_task, research_task])
 ```
+
+### Individual Agent Modules
+
+Each agent is defined in its own module for maximum reusability:
+
+```python
+# agents/youtube_analyst.py
+from crewai import Agent
+from tools.mcp_tools import YouTubeMCPTool
+
+youtube_analyst = Agent(
+    role="YouTube Content Analyst",
+    goal="Extract key topics and themes from videos",
+    tools=[YouTubeMCPTool()],
+    # ... configuration
+)
+```
+
+### Modular Benefits
+
+- **Reusable agents**: Import individual agents into custom crews
+- **Clear separation**: Each agent has single responsibility
+- **Easy testing**: Test agents individually or in custom combinations
+- **Scalable**: Add new agents without modifying existing ones
 
 ### MCP Tool Pattern
 

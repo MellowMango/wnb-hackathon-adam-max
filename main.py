@@ -17,8 +17,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from weave_custom import setup_weave_tracing
-from crews import ResearchCrew, PlanningCrew, ContentCrew
-from flows import ContentPipeline, EventOrchestrator
+from crew import ContentCreationCrew
 
 
 class CrewAIMCPApp:
@@ -28,27 +27,15 @@ class CrewAIMCPApp:
     
     def __init__(self):
         self.weave_initialized = False
-        self.crews = {}
-        self.flows = {}
         self._setup_components()
     
     def _setup_components(self):
-        """Initialize all crews and flows."""
+        """Initialize content creation crew."""
         
-        # Initialize crews
-        self.crews = {
-            "research": ResearchCrew(),
-            "planning": PlanningCrew(),
-            "content": ContentCrew()
-        }
+        # Initialize content creation crew (proper CrewAI structure)
+        self.crew = ContentCreationCrew()
         
-        # Initialize flows
-        self.flows = {
-            "pipeline": ContentPipeline(),
-            "orchestrator": EventOrchestrator()
-        }
-        
-        print("✅ CrewAI MCP components initialized")
+        print("✅ CrewAI MCP components initialized with proper crew structure")
     
     def initialize_weave(self, project_name: str = "crewai-mcp-pipeline", api_key: str = None):
         """
@@ -80,8 +67,7 @@ class CrewAIMCPApp:
         """
         print(f"🎬 Analyzing YouTube content: {video_url}")
         
-        research_crew = self.crews["research"]
-        result = research_crew.analyze_content(video_url, location, date)
+        result = self.crew.analyze_content(video_url, location, date)
         
         print(f"✅ Analysis complete")
         return result
@@ -105,8 +91,9 @@ class CrewAIMCPApp:
         print(f"   Location: {location}")
         print(f"   Date: {date}")
         
-        pipeline = self.flows["pipeline"]
-        result = await pipeline.run_complete_pipeline(video_url, location, date, participants)
+        result = self.crew.complete_pipeline(
+            video_url, location, date, participants or []
+        )
         
         print(f"✅ Pipeline complete!")
         return result
@@ -125,8 +112,7 @@ class CrewAIMCPApp:
         """
         print(f"🔍 Searching for experiences: {query}")
         
-        research_crew = self.crews["research"]
-        result = research_crew.research_topics([query], location, date)
+        result = self.crew.test_local_researcher([query], location, date)
         
         print(f"✅ Search complete")
         return result
@@ -145,8 +131,7 @@ class CrewAIMCPApp:
         """
         print(f"🗺️  Planning routes for {len(experiences)} experiences")
         
-        planning_crew = self.crews["planning"]
-        result = planning_crew.plan_complete_experience(experiences, location, date, "full-day")
+        result = self.crew.plan_experience(experiences, location, date, "full-day")
         
         print(f"✅ Route planning complete")
         return result
@@ -187,8 +172,7 @@ Examples:
         print(f"""
 System Status:
   Weave Tracing: {'✅ Enabled' if self.weave_initialized else '❌ Disabled'}
-  Crews: {len(self.crews)} loaded ({', '.join(self.crews.keys())})
-  Flows: {len(self.flows)} loaded ({', '.join(self.flows.keys())})
+  Content Crew: ✅ Loaded (6 specialized agents)
   Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         """)
     

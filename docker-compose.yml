@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # Main CrewAI application
+  crew:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - WANDB_API_KEY=${WANDB_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - YOUTUBE_MCP_URL=http://youtube-mcp:8000
+      - EXA_MCP_URL=http://exa-mcp:8001
+      - MAPS_MCP_URL=http://maps-mcp:8002
+      - CALENDAR_MCP_URL=http://calendar-mcp:8003
+      - TTS_MCP_URL=http://tts-mcp:8004
+    depends_on:
+      - youtube-mcp
+      - exa-mcp
+      - maps-mcp
+      - calendar-mcp
+      - tts-mcp
+    volumes:
+      - .:/app
+    command: python main.py
+
+  # YouTube MCP Server
+  youtube-mcp:
+    build:
+      context: .
+      dockerfile: mcp_servers/Dockerfile.youtube
+    ports:
+      - "8000:8000"
+    environment:
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Exa Search MCP Server
+  exa-mcp:
+    build:
+      context: .
+      dockerfile: mcp_servers/Dockerfile.exa
+    ports:
+      - "8001:8001"
+    environment:
+      - EXA_API_KEY=${EXA_API_KEY}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Google Maps MCP Server
+  maps-mcp:
+    build:
+      context: .
+      dockerfile: mcp_servers/Dockerfile.maps
+    ports:
+      - "8002:8002"
+    environment:
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Google Calendar MCP Server
+  calendar-mcp:
+    build:
+      context: .
+      dockerfile: mcp_servers/Dockerfile.calendar
+    ports:
+      - "8003:8003"
+    environment:
+      - GOOGLE_CALENDAR_CREDENTIALS_PATH=/app/credentials/calendar_credentials.json
+    volumes:
+      - ./credentials:/app/credentials:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # TTS MCP Server
+  tts-mcp:
+    build:
+      context: .
+      dockerfile: mcp_servers/Dockerfile.tts
+    ports:
+      - "8004:8004"
+    environment:
+      - ELEVEN_LABS_API_KEY=${ELEVEN_LABS_API_KEY}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  default:
+    name: crewai-mcp-network

@@ -1,50 +1,77 @@
 #!/usr/bin/env python3
 """
-Basic Usage Example
+Basic usage example for YouTube Video Monitor
 
-This example shows how to use the YouTube Playlist Monitor
-with minimal configuration.
+This example shows how to use the YouTube Video Monitor to process
+individual videos and extract their metadata and transcripts.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
-# Add the src directory to the path
-sys.path.append(str(Path(__file__).parent.parent / "src"))
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from monitor import YouTubePlaylistMonitor
+from monitor import YouTubeVideoMonitor, extract_video_id
 
 def main():
     """Basic usage example."""
     
-    # Configuration - replace with your actual values
-    API_KEY = "your_youtube_api_key_here"
-    PLAYLIST_ID = "your_playlist_id_here"
+    # Configuration
+    api_key = os.getenv("YOUTUBE_API_KEY")
+    if not api_key:
+        print("❌ Error: Please set YOUTUBE_API_KEY environment variable")
+        return
     
-    print("🎬 Basic Usage Example")
-    print("=" * 40)
+    # Example video URLs
+    video_urls = [
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",  # Rick Astley - Never Gonna Give You Up
+        "https://youtu.be/dQw4w9WgXcQ",                 # Short URL format
+        "dQw4w9WgXcQ",                                  # Just the video ID
+    ]
     
-    # Create monitor instance
-    monitor = YouTubePlaylistMonitor(
-        api_key=API_KEY,
-        playlist_id=PLAYLIST_ID,
+    # Create monitor
+    monitor = YouTubeVideoMonitor(
+        api_key=api_key,
         output_dir="example_output"
     )
     
-    # Check for new videos once
-    print("Checking for new videos...")
-    new_videos = monitor.check_for_new_videos()
+    print("🎬 YouTube Video Monitor - Basic Usage Example")
+    print("=" * 50)
     
-    if new_videos:
-        print(f"Found {len(new_videos)} new video(s)")
-        for video in new_videos:
-            print(f"Processing: {video['title']}")
-            monitor.process_video(video)
-    else:
-        print("No new videos found")
+    # Process each video
+    for url in video_urls:
+        print(f"\n📺 Processing: {url}")
+        
+        # Extract video ID
+        video_id = extract_video_id(url)
+        if not video_id:
+            print(f"❌ Invalid URL: {url}")
+            continue
+        
+        print(f"   Video ID: {video_id}")
+        
+        # Process video
+        try:
+            video_dir = monitor.process_video(url)
+            
+            if video_dir:
+                print(f"✅ Successfully processed!")
+                print(f"   Data saved to: {video_dir}")
+                
+                # Show what files were created
+                files = list(video_dir.glob("*"))
+                for file in files:
+                    print(f"   - {file.name}")
+            else:
+                print(f"❌ Failed to process video")
+                
+        except Exception as e:
+            print(f"❌ Error processing video: {e}")
     
-    print("✅ Example completed!")
+    print("\n🎉 Example completed!")
+    print("Check the 'example_output' directory for extracted data.")
 
 if __name__ == "__main__":
     main() 

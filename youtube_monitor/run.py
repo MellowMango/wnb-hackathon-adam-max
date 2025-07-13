@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-YouTube Playlist Monitor - Launcher
+YouTube Video Monitor - Launcher
 
-Simple launcher script for the YouTube playlist monitor.
+Simple launcher script for the YouTube video monitor.
+Process individual YouTube videos to extract metadata and transcripts.
 """
 
 import sys
@@ -13,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 def main():
-    """Launch the YouTube playlist monitor."""
+    """Launch the YouTube video monitor."""
     try:
         from cli import main as cli_main
         cli_main()

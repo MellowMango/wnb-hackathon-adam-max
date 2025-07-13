@@ -1,17 +1,17 @@
-# YouTube Playlist Monitor
+# YouTube Video Monitor
 
-A Python application that monitors YouTube playlists for new videos and automatically extracts their transcriptions and metadata, saving the information to organized text files.
+A Python application that extracts transcriptions and metadata from individual YouTube videos, saving the information to organized text files.
 
 ## 🚀 Features
 
-- **Continuous Monitoring**: Automatically checks for new videos in YouTube playlists
-- **Transcript Extraction**: Gets full transcripts from YouTube videos
-- **Metadata Collection**: Extracts comprehensive video information (views, likes, comments, etc.)
-- **Organized Storage**: Saves data in structured text files with timestamps
-- **Duplicate Prevention**: Tracks processed videos to avoid re-processing
+- **Individual Video Processing**: Process any YouTube video by providing its URL or video ID
+- **Transcript Extraction**: Gets full transcripts from YouTube videos in multiple languages
+- **Metadata Collection**: Extracts comprehensive video information (views, likes, comments, duration, etc.)
+- **Organized Storage**: Saves data in structured files with timestamps
+- **Multiple URL Formats**: Supports various YouTube URL formats (youtube.com, youtu.be, embed, etc.)
 - **Comprehensive Logging**: Detailed logging for monitoring and debugging
 - **CLI Interface**: Easy-to-use command-line interface
-- **Configuration Management**: Flexible configuration via environment variables or files
+- **Flexible Configuration**: Configuration via environment variables or command-line arguments
 
 ## 📁 Project Structure
 
@@ -19,7 +19,7 @@ A Python application that monitors YouTube playlists for new videos and automati
 youtube_monitor/
 ├── src/                    # Core source code
 │   ├── __init__.py
-│   ├── monitor.py         # Main monitoring functionality
+│   ├── monitor.py         # Main video processing functionality
 │   └── cli.py            # Command-line interface
 ├── config/                # Configuration management
 │   ├── __init__.py
@@ -30,6 +30,7 @@ youtube_monitor/
 │   └── test_monitor.py   # Unit tests
 ├── docs/                  # Documentation
 ├── main.py               # Main entry point
+├── run.py                # Alternative launcher
 ├── requirements.txt      # Python dependencies
 └── README.md            # This file
 ```
@@ -54,11 +55,6 @@ youtube_monitor/
    - Create credentials (API Key)
    - Copy your API key
 
-5. **Get your Playlist ID**:
-   - Go to the YouTube playlist you want to monitor
-   - Copy the URL (e.g., `https://www.youtube.com/playlist?list=PLxxxxxxxxxx`)
-   - Extract the playlist ID (the part after `list=`, e.g., `PLxxxxxxxxxx`)
-
 ## ⚙️ Configuration
 
 ### Option 1: Environment Variables (Recommended)
@@ -67,9 +63,6 @@ Create a `.env` file in the project directory:
 
 ```env
 YOUTUBE_API_KEY=your_youtube_api_key_here
-PLAYLIST_ID=your_playlist_id_here
-CHECK_INTERVAL=300
-OUTPUT_DIRECTORY=youtube_data
 ```
 
 ### Option 2: Command Line Arguments
@@ -77,56 +70,62 @@ OUTPUT_DIRECTORY=youtube_data
 Use command-line arguments to specify configuration:
 
 ```bash
-python main.py --api-key YOUR_API_KEY --playlist-id YOUR_PLAYLIST_ID
+python main.py --api-key YOUR_API_KEY https://www.youtube.com/watch?v=dQw4w9WgXcQ
 ```
 
 ## 🎯 Usage
 
 ### Quick Start
 
-Run the monitor with default settings:
+Set your API key as an environment variable and run:
 
 ```bash
-python main.py
+export YOUTUBE_API_KEY=your_api_key_here
+python main.py https://www.youtube.com/watch?v=dQw4w9WgXcQ
 ```
 
 ### Advanced Usage
 
 ```bash
-# Run with custom parameters
-python main.py --api-key YOUR_API_KEY --playlist-id YOUR_PLAYLIST_ID
+# Process with API key argument
+python main.py --api-key YOUR_API_KEY https://youtu.be/dQw4w9WgXcQ
 
-# Run once without continuous monitoring
-python main.py --one-time
+# Process with custom output directory
+python main.py --output-dir my_videos https://www.youtube.com/watch?v=dQw4w9WgXcQ
 
-# Custom check interval (10 minutes)
-python main.py --check-interval 600
+# Process with just video ID
+python main.py dQw4w9WgXcQ
 
 # Verbose logging
-python main.py --verbose
-
-# Custom output directory
-python main.py --output-dir my_data
+python main.py --verbose https://www.youtube.com/watch?v=dQw4w9WgXcQ
 ```
+
+### Supported URL Formats
+
+The application supports various YouTube URL formats:
+
+- `https://www.youtube.com/watch?v=dQw4w9WgXcQ`
+- `https://youtu.be/dQw4w9WgXcQ`
+- `https://www.youtube.com/embed/dQw4w9WgXcQ`
+- `https://www.youtube.com/v/dQw4w9WgXcQ`
+- `dQw4w9WgXcQ` (just the video ID)
 
 ### Programmatic Usage
 
 ```python
-from src.monitor import YouTubePlaylistMonitor
+from src.monitor import YouTubeVideoMonitor
 
 # Create monitor
-monitor = YouTubePlaylistMonitor(
+monitor = YouTubeVideoMonitor(
     api_key="your_api_key",
-    playlist_id="your_playlist_id",
     output_dir="output_data"
 )
 
-# Check for new videos
-new_videos = monitor.check_for_new_videos()
+# Process a video
+video_dir = monitor.process_video("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 
-# Process videos
-for video in new_videos:
-    monitor.process_video(video)
+if video_dir:
+    print(f"Video processed successfully: {video_dir}")
 ```
 
 ## 📊 Output Structure
@@ -135,7 +134,6 @@ The application creates organized files for each video:
 
 ```
 youtube_data/
-├── processed_videos.json          # Tracks processed videos
 ├── video_id_20231201_143022/     # Video-specific directory
 │   ├── metadata.json             # Complete video metadata
 │   ├── transcript.txt            # Full transcript with headers

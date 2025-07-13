@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-YouTube Playlist Monitor - Main Entry Point
+YouTube Video Monitor - Main Entry Point
 
-This is the main entry point for the YouTube playlist monitor application.
+This is the main entry point for the YouTube video monitor application.
+Process individual YouTube videos to extract metadata and transcripts.
 """
 
 import sys

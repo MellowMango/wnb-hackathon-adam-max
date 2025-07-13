@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-YouTube Playlist Monitor - Command Line Interface
+YouTube Video Monitor - Command Line Interface
 
-This module provides the command-line interface for the YouTube playlist monitor.
+This module provides the command-line interface for the YouTube video monitor.
 """
 
 import sys
@@ -10,56 +10,53 @@ import argparse
 import logging
 from pathlib import Path
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv not available, skip loading .env file
+    pass
+
 # Add the src directory to the path
 sys.path.append(str(Path(__file__).parent))
 
-from monitor import YouTubePlaylistMonitor
+from monitor import YouTubeVideoMonitor, extract_video_id
 
 def main():
-    """Main function to run the YouTube playlist monitor."""
+    """Main function to run the YouTube video monitor."""
     
     parser = argparse.ArgumentParser(
-        description='Monitor YouTube playlist for new videos and extract transcriptions',
+        description='Extract transcriptions and metadata from YouTube videos',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run with environment variables
-  python cli.py
+  # Process a video with environment variables
+  python cli.py https://www.youtube.com/watch?v=dQw4w9WgXcQ
 
-  # Run with command line arguments
-  python cli.py --api-key YOUR_KEY --playlist-id YOUR_PLAYLIST_ID
+  # Process a video with API key
+  python cli.py --api-key YOUR_KEY https://youtu.be/dQw4w9WgXcQ
 
-  # Run once without continuous monitoring
-  python cli.py --one-time
+  # Process with custom output directory
+  python cli.py --output-dir my_videos https://www.youtube.com/watch?v=dQw4w9WgXcQ
 
-  # Custom check interval (10 minutes)
-  python cli.py --check-interval 600
+  # Process with just video ID
+  python cli.py dQw4w9WgXcQ
         """
     )
     
+    parser.add_argument(
+        'video_url',
+        help='YouTube video URL or video ID'
+    )
     parser.add_argument(
         '--api-key',
         help='YouTube Data API key (or set YOUTUBE_API_KEY env var)'
     )
     parser.add_argument(
-        '--playlist-id',
-        help='YouTube playlist ID (or set PLAYLIST_ID env var)'
-    )
-    parser.add_argument(
         '--output-dir',
         default='youtube_data',
         help='Output directory for extracted data (default: youtube_data)'
-    )
-    parser.add_argument(
-        '--check-interval',
-        type=int,
-        default=300,
-        help='Check interval in seconds (default: 300)'
-    )
-    parser.add_argument(
-        '--one-time',
-        action='store_true',
-        help='Run once and exit (don\'t monitor continuously)'
     )
     parser.add_argument(
         '--verbose', '-v',
@@ -76,57 +73,54 @@ Examples:
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
     
-    # Get API key and playlist ID
+    # Get API key
     api_key = args.api_key or get_env_var('YOUTUBE_API_KEY')
-    playlist_id = args.playlist_id or get_env_var('PLAYLIST_ID')
     
     if not api_key:
         print("❌ Error: YouTube API key not found")
         print("Please set YOUTUBE_API_KEY environment variable or use --api-key")
         sys.exit(1)
     
-    if not playlist_id:
-        print("❌ Error: Playlist ID not found")
-        print("Please set PLAYLIST_ID environment variable or use --playlist-id")
+    # Validate video URL/ID
+    video_id = extract_video_id(args.video_url)
+    if not video_id:
+        print(f"❌ Error: Invalid YouTube video URL or ID: {args.video_url}")
+        print("Please provide a valid YouTube video URL or 11-character video ID")
         sys.exit(1)
     
     # Print configuration
-    print("🎬 YouTube Playlist Monitor")
+    print("🎬 YouTube Video Monitor")
     print("=" * 40)
-    print(f"Playlist ID: {playlist_id}")
+    print(f"Video URL/ID: {args.video_url}")
+    print(f"Video ID: {video_id}")
     print(f"Output Directory: {args.output_dir}")
-    print(f"Check Interval: {args.check_interval} seconds")
-    print(f"Mode: {'One-time' if args.one_time else 'Continuous'}")
     print("=" * 40)
     
     # Create and run monitor
     try:
-        monitor = YouTubePlaylistMonitor(
+        monitor = YouTubeVideoMonitor(
             api_key=api_key,
-            playlist_id=playlist_id,
             output_dir=args.output_dir
         )
         
-        if args.one_time:
-            # Run once
-            new_videos = monitor.check_for_new_videos()
-            if new_videos:
-                print(f"Found {len(new_videos)} new video(s)")
-                for video in new_videos:
-                    print(f"Processing: {video['title']}")
-                    monitor.process_video(video)
-            else:
-                print("No new videos found")
+        # Process the video
+        video_dir = monitor.process_video(args.video_url)
+        
+        if video_dir:
+            print(f"✅ Successfully processed video!")
+            print(f"📁 Data saved to: {video_dir}")
+            print(f"   - metadata.json: Video metadata")
+            print(f"   - transcript.txt: Full transcript")
+            print(f"   - summary.txt: Video summary")
         else:
-            # Monitor continuously
-            print("Press Ctrl+C to stop monitoring")
-            monitor.monitor_playlist(check_interval=args.check_interval)
+            print("❌ Failed to process video")
+            sys.exit(1)
             
     except KeyboardInterrupt:
-        print("\n🛑 Monitoring stopped by user")
+        print("\n🛑 Processing stopped by user")
     except Exception as e:
         print(f"❌ Error: {e}")
-        logging.error(f"Error during monitoring: {e}")
+        logging.error(f"Error during processing: {e}")
         sys.exit(1)
 
 def get_env_var(name: str) -> str:

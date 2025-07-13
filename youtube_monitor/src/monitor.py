@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-YouTube Playlist Monitor - Core Monitoring Module
+YouTube Video Monitor - Core Monitoring Module
 
-This module provides the main functionality for monitoring YouTube playlists
+This module provides the main functionality for monitoring YouTube videos/playlists
 and extracting video transcriptions and metadata.
 """
 
@@ -10,9 +10,11 @@ import os
 import json
 import time
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs
 
 import requests
 from googleapiclient.discovery import build
@@ -31,90 +33,57 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-class YouTubePlaylistMonitor:
-    """Main class for monitoring YouTube playlists and extracting video data."""
+def extract_video_id(url: str) -> Optional[str]:
+    """
+    Extract video ID from various YouTube URL formats.
     
-    def __init__(self, api_key: str, playlist_id: str, output_dir: str = "youtube_data"):
+    Args:
+        url: YouTube URL or video ID
+        
+    Returns:
+        Video ID if valid, None otherwise
+    """
+    # Parse different YouTube URL formats first
+    patterns = [
+        r'(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([a-zA-Z0-9_-]{11})',
+        r'(?:https?://)?(?:www\.)?youtube\.com/embed/([a-zA-Z0-9_-]{11})',
+        r'(?:https?://)?(?:www\.)?youtube\.com/v/([a-zA-Z0-9_-]{11})',
+        r'(?:https?://)?youtu\.be/([a-zA-Z0-9_-]{11})',
+        r'(?:https?://)?(?:www\.)?youtube\.com/watch\?.*v=([a-zA-Z0-9_-]{11})',
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    
+    # If it's already a video ID (11 characters, alphanumeric and dashes/underscores)
+    # and contains typical YouTube video ID patterns (not just any 11-character string)
+    if re.match(r'^[a-zA-Z0-9_-]{11}$', url) and not url.lower().startswith('invalid'):
+        return url
+    
+    return None
+
+class YouTubeVideoMonitor:
+    """Class for monitoring individual YouTube videos and extracting video data."""
+    
+    def __init__(self, api_key: str, output_dir: str = "youtube_data"):
         """
-        Initialize the YouTube playlist monitor.
+        Initialize the YouTube video monitor.
         
         Args:
             api_key: YouTube Data API key
-            playlist_id: YouTube playlist ID
             output_dir: Directory to save extracted data
         """
         self.api_key = api_key
-        self.playlist_id = playlist_id
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
         
         # Initialize YouTube API client
         self.youtube = build('youtube', 'v3', developerKey=api_key)
         
-        # Track processed videos
-        self.processed_videos_file = self.output_dir / "processed_videos.json"
-        self.processed_videos = self._load_processed_videos()
-        
-        logger.info(f"Initialized monitor for playlist: {playlist_id}")
+        logger.info("Initialized YouTube video monitor")
         logger.info(f"Output directory: {self.output_dir}")
-    
-    def _load_processed_videos(self) -> set:
-        """Load list of already processed video IDs."""
-        if self.processed_videos_file.exists():
-            try:
-                with open(self.processed_videos_file, 'r') as f:
-                    data = json.load(f)
-                    return set(data.get('processed_videos', []))
-            except Exception as e:
-                logger.error(f"Error loading processed videos: {e}")
-        return set()
-    
-    def _save_processed_videos(self):
-        """Save list of processed video IDs."""
-        try:
-            with open(self.processed_videos_file, 'w') as f:
-                json.dump({
-                    'processed_videos': list(self.processed_videos),
-                    'last_updated': datetime.now().isoformat()
-                }, f, indent=2)
-        except Exception as e:
-            logger.error(f"Error saving processed videos: {e}")
-    
-    def get_playlist_videos(self) -> List[Dict[str, Any]]:
-        """Get all videos from the playlist."""
-        videos = []
-        next_page_token = None
-        
-        try:
-            while True:
-                request = self.youtube.playlistItems().list(
-                    part='snippet,contentDetails',
-                    playlistId=self.playlist_id,
-                    maxResults=50,
-                    pageToken=next_page_token
-                )
-                
-                response = request.execute()
-                
-                for item in response['items']:
-                    video_data = {
-                        'video_id': item['contentDetails']['videoId'],
-                        'title': item['snippet']['title'],
-                        'description': item['snippet']['description'],
-                        'published_at': item['snippet']['publishedAt'],
-                        'channel_title': item['snippet']['channelTitle'],
-                        'playlist_position': item['snippet']['position']
-                    }
-                    videos.append(video_data)
-                
-                next_page_token = response.get('nextPageToken')
-                if not next_page_token:
-                    break
-                    
-        except HttpError as e:
-            logger.error(f"Error fetching playlist videos: {e}")
-        
-        return videos
     
     def get_video_metadata(self, video_id: str) -> Dict[str, Any]:
         """Get detailed metadata for a specific video."""
@@ -147,10 +116,13 @@ class YouTubePlaylistMonitor:
                     'licensed_content': video['contentDetails']['licensedContent'],
                     'projection': video['contentDetails']['projection']
                 }
+            else:
+                logger.error(f"No video found with ID: {video_id}")
+                return {}
+                
         except HttpError as e:
             logger.error(f"Error fetching video metadata for {video_id}: {e}")
-        
-        return {}
+            return {}
     
     def get_video_transcript(self, video_id: str) -> str:
         """Get transcript for a YouTube video."""
@@ -214,71 +186,38 @@ class YouTubePlaylistMonitor:
             f.write(f"Transcript Length: {len(transcript)} characters\n")
         
         logger.info(f"Saved data for video {video_id} to {video_dir}")
+        return video_dir
     
-    def check_for_new_videos(self) -> List[Dict[str, Any]]:
-        """Check for new videos in the playlist."""
-        logger.info("Checking for new videos in playlist...")
+    def process_video(self, video_url: str) -> Optional[Path]:
+        """
+        Process a single video: extract ID, get metadata, transcript, and save data.
         
-        videos = self.get_playlist_videos()
-        new_videos = []
+        Args:
+            video_url: YouTube video URL or video ID
+            
+        Returns:
+            Path to saved video data directory, or None if processing failed
+        """
+        video_id = extract_video_id(video_url)
+        if not video_id:
+            logger.error(f"Could not extract video ID from: {video_url}")
+            return None
         
-        for video in videos:
-            video_id = video['video_id']
-            if video_id not in self.processed_videos:
-                new_videos.append(video)
-                logger.info(f"Found new video: {video['title']} ({video_id})")
-        
-        return new_videos
-    
-    def process_video(self, video_data: Dict[str, Any]):
-        """Process a single video: get metadata, transcript, and save data."""
-        video_id = video_data['video_id']
-        
-        logger.info(f"Processing video: {video_data['title']} ({video_id})")
+        logger.info(f"Processing video: {video_id}")
         
         # Get detailed metadata
         metadata = self.get_video_metadata(video_id)
         if not metadata:
             logger.error(f"Could not get metadata for video {video_id}")
-            return
+            return None
+        
+        logger.info(f"Found video: {metadata['title']}")
         
         # Get transcript
         transcript = self.get_video_transcript(video_id)
         
         # Save all data
-        self.save_video_data(video_id, metadata, transcript)
-        
-        # Mark as processed
-        self.processed_videos.add(video_id)
-        self._save_processed_videos()
+        video_dir = self.save_video_data(video_id, metadata, transcript)
         
         logger.info(f"Successfully processed video {video_id}")
-    
-    def monitor_playlist(self, check_interval: int = 300):
-        """
-        Continuously monitor the playlist for new videos.
-        
-        Args:
-            check_interval: Time between checks in seconds (default: 5 minutes)
-        """
-        logger.info(f"Starting playlist monitoring. Checking every {check_interval} seconds...")
-        
-        try:
-            while True:
-                new_videos = self.check_for_new_videos()
-                
-                if new_videos:
-                    logger.info(f"Found {len(new_videos)} new video(s)")
-                    for video in new_videos:
-                        self.process_video(video)
-                else:
-                    logger.info("No new videos found")
-                
-                logger.info(f"Next check in {check_interval} seconds...")
-                time.sleep(check_interval)
-                
-        except KeyboardInterrupt:
-            logger.info("Monitoring stopped by user")
-        except Exception as e:
-            logger.error(f"Error during monitoring: {e}")
-            raise 
+        return video_dir 

@@ -58,12 +58,16 @@ This system follows proper CrewAI structure with modular agents and central orch
 - **tts_mcp.py** - Thin wrappers for TTS MCP server
 
 ### 🖥️ MCP Servers (`mcp_servers/`)
-- FastAPI servers for each external service integration
-- YouTube, Exa, Google Maps, Calendar, and TTS services
+- **YouTube**: FastAPI wrapper around `@kimtaeyoon83/mcp-server-youtube-transcript` (Node.js)
+- **Exa**: FastAPI server for semantic search
+- **Google Maps**: FastAPI server for routing and navigation
+- **Calendar**: FastAPI server for Google Calendar integration
+- **TTS**: FastAPI server for text-to-speech conversion
 
 ## Key Features
 
 ✅ **Proper CrewAI Structure** - Modular agents with central orchestration  
+✅ **Real YouTube Transcripts** - Integrated `@kimtaeyoon83/mcp-server-youtube-transcript`  
 ✅ **Thin MCP Wrappers** - Clean separation between agents and external services  
 ✅ **Health Checks** - All MCP servers expose `/health` endpoints  
 ✅ **Docker Compose** - Complete local development environment  
@@ -141,6 +145,33 @@ python test.py
 python crew.py
 python main.py
 ```
+
+## YouTube MCP Integration
+
+This project integrates the `@kimtaeyoon83/mcp-server-youtube-transcript` Node.js MCP server:
+
+### Features
+- **Real transcript extraction** from YouTube videos
+- **Multi-language support** (defaults to English)
+- **Robust error handling** with fallback data
+- **FastAPI wrapper** for seamless integration
+
+### Usage
+```python
+from tools.youtube_mcp import youtube_transcribe, youtube_analyze
+
+# Get transcript
+transcript = youtube_transcribe("https://youtube.com/watch?v=abc123", lang="en")
+
+# Full analysis with themes and insights
+analysis = youtube_analyze("https://youtube.com/watch?v=abc123")
+```
+
+### Docker Integration
+The YouTube MCP server runs in a hybrid Python/Node.js container:
+- **Python FastAPI wrapper** for API compatibility
+- **Node.js MCP server** for actual transcript processing
+- **Health checks** and error handling included
 
 ## Development
 

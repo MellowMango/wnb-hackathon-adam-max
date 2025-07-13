@@ -1,0 +1,36 @@
+{
+  "video_url": "https://youtu.be/DVGSXt4C8z0?si=dQqVr5KbErz2yGaG",
+  "video_id": "DVGSXt4C8z0",
+  "video_details": {
+    "video_id": "DVGSXt4C8z0",
+    "title": "The Punjabi secret to the best chickpeas - India’s Amritsari Chole #shorts",
+    "description": "",
+    "channel": "Hermann",
+    "channel_id": "UCD25pu-XyVbiuQNGLvctHDw",
+    "published_at": "2024-10-26T11:03:53Z",
+    "duration": "PT47S",
+    "view_count": 1100907,
+    "like_count": 70456,
+    "comment_count": 578,
+    "tags": [],
+    "category_id": "26",
+    "default_language": "en",
+    "thumbnail": "https://i.ytimg.com/vi/DVGSXt4C8z0/hqdefault.jpg",
+    "success": true
+  },
+  "transcript_data": {
+    "video_id": "DVGSXt4C8z0",
+    "success": false,
+    "error": "\nCould not retrieve a transcript for the video https://www.youtube.com/watch?v=DVGSXt4C8z0! This is most likely caused by:\n\nYouTube is blocking requests from your IP. This usually is due to one of the following reasons:\n- You have done too many requests and your IP has been blocked by YouTube\n- You are doing requests from an IP belonging to a cloud provider (like AWS, Google Cloud Platform, Azure, etc.). Unfortunately, most IPs from cloud providers are blocked by YouTube.\n\nWays to work around this are explained in the \"Working around IP bans\" section of the README (https://github.com/jdepoix/youtube-transcript-api?tab=readme-ov-file#working-around-ip-bans-requestblocked-or-ipblocked-exception).\n\n\nIf you are sure that the described cause is not responsible for this error and that a transcript should be retrievable, please create an issue at https://github.com/jdepoix/youtube-transcript-api/issues. Please add which version of youtube_transcript_api you are using and provide the information needed to replicate the error. Also make sure that there are no open issues which already describe your problem!",
+    "transcript": "",
+    "segments": [],
+    "word_count": 0,
+    "segment_count": 0,
+    "languages": [
+      "en"
+    ]
+  },
+  "filepath": "single_video_output/DVGSXt4C8z0_The Punjabi secret to the best chickpeas - India’s Amritsari Chole #shorts.txt",
+  "extraction_time": "2025-07-12 19:09:44",
+  "output_directory": "single_video_output"
+}

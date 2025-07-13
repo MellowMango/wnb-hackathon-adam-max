@@ -12,19 +12,23 @@ from typing import Dict, Any
 BASE_URL = os.getenv("YOUTUBE_MCP_URL", "http://localhost:8000")
 
 @tool("youtube.transcribe")
-def youtube_transcribe(video_url: str) -> str:
+def youtube_transcribe(video_url: str, lang: str = "en") -> str:
     """Extract transcript/captions from YouTube video."""
     try:
         response = requests.post(
             f"{BASE_URL}/mcp/run",
             json={
-                "method": "transcribe",
-                "args": {"video_url": video_url}
+                "method": "get_transcript",
+                "args": {
+                    "video_url": video_url,
+                    "lang": lang
+                }
             },
             timeout=45
         )
         response.raise_for_status()
-        return response.json().get("text", "")
+        result = response.json()
+        return result.get("transcript", "")
     except Exception as e:
         return f"Error transcribing video: {str(e)}"
 
@@ -35,7 +39,7 @@ def youtube_analyze(video_url: str, analysis_type: str = "full") -> Dict[str, An
         response = requests.post(
             f"{BASE_URL}/mcp/run",
             json={
-                "method": "analyze",
+                "method": "analyze_video",
                 "args": {
                     "video_url": video_url,
                     "analysis_type": analysis_type
@@ -73,7 +77,7 @@ def youtube_metadata(video_url: str) -> Dict[str, Any]:
         response = requests.post(
             f"{BASE_URL}/mcp/run",
             json={
-                "method": "metadata",
+                "method": "get_metadata",
                 "args": {"video_url": video_url}
             },
             timeout=30

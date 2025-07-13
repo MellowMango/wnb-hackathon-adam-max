@@ -83,6 +83,9 @@ python setup.py
 # Run main test suite
 python test.py
 
+# Test YouTube MCP integration
+python test_youtube_mcp.py
+
 # Test central orchestrator with all agents
 python crew.py
 

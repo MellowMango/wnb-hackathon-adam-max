@@ -1,6 +1,6 @@
 # CrewAI MCP Pipeline
 
-A content creation pipeline that transforms YouTube videos into local experiences with calendar integration and podcast content using CrewAI agents and Model Context Protocol (MCP) servers.
+A content creation pipeline that transforms content into local experiences with calendar integration and podcast content using CrewAI agents and Model Context Protocol (MCP) servers.
 
 ## Quick Start
 
@@ -20,17 +20,17 @@ python test.py
 python main.py
 ```
 
-### Docker Development (Recommended)
+### Local Development
 ```bash
-# Copy environment template
+# Copy environment template (if available)
 cp .env.example .env
 # Edit .env with your API keys
 
-# Start all services
-docker compose up
+# Install dependencies
+pip install -r requirements.txt
 
-# The crew app will be available at http://localhost:8080
-# Individual MCP servers on ports 8000-8004
+# Run the application
+python main.py
 ```
 
 ## Architecture
@@ -51,7 +51,7 @@ This system follows proper CrewAI structure with modular agents and central orch
 - Defines high-level workflows and task coordination
 
 ### 🔧 MCP Tools (`tools/`)
-- **youtube_mcp.py** - Thin wrappers for YouTube MCP server
+- **youtube_mcp.py** - REMOVED - Previously contained YouTube MCP server wrappers
 - **exa_mcp.py** - Thin wrappers for Exa search MCP server  
 - **maps_mcp.py** - Thin wrappers for Google Maps MCP server
 - **calendar_mcp.py** - Thin wrappers for Calendar MCP server
@@ -66,7 +66,7 @@ This system follows proper CrewAI structure with modular agents and central orch
 ✅ **Proper CrewAI Structure** - Modular agents with central orchestration  
 ✅ **Thin MCP Wrappers** - Clean separation between agents and external services  
 ✅ **Health Checks** - All MCP servers expose `/health` endpoints  
-✅ **Docker Compose** - Complete local development environment  
+✅ **Local Development** - Python-based development environment  
 ✅ **LLM-Controlled Routing** - AI determines optimal travel routes  
 ✅ **Shareable Google Maps Links** - Clickable navigation in calendar events  
 ✅ **Calendar Integration** - Automated event creation with embedded maps  

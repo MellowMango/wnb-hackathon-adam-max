@@ -1,13 +1,13 @@
 """
-MCP Tools Package
+MCP Tools Package - Simplified for ytmcp only
 
-This module contains CrewAI tool wrappers for Model Context Protocol servers.
-Each tool provides a standardized interface to external services.
+This module contains CrewAI tool wrappers for the YouTube transcript MCP server.
 """
 
 import os
 import json
-import requests
+import subprocess
+import sys
 from typing import Dict, Any, List, Optional
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
@@ -15,399 +15,248 @@ from pydantic import BaseModel, Field
 
 class YouTubeMCPTool(BaseTool):
     """
-    Tool for interacting with YouTube content via MCP server.
-    Provides video analysis, caption extraction, and metadata retrieval.
+    Tool for interacting with YouTube content via ytmcp MCP server.
+    Provides transcript extraction and video analysis capabilities.
     """
     
     name: str = "youtube_mcp"
     description: str = """
-    Analyze YouTube videos and extract insights.
+    Extract YouTube video transcripts and analyze content using the ytmcp MCP server.
     
     Capabilities:
-    - Extract video captions/transcripts
-    - Get video metadata (title, description, tags)
-    - Analyze content themes and topics
-    - Extract actionable insights for experience planning
+    - Extract video transcripts/captions
+    - Get video metadata (title, description, duration)
+    - Analyze transcript content for themes and insights
+    - Support for multiple languages
     """
     
-    def _run(self, video_url: str, analysis_type: str = "full") -> str:
+    def __init__(self):
+        super().__init__()
+    
+    def _run(self, action: str, **kwargs) -> str:
         """
-        Run YouTube analysis via MCP server.
+        Run YouTube operations via ytmcp MCP server.
         
         Args:
-            video_url: YouTube video URL to analyze
-            analysis_type: Type of analysis (full, captions, metadata, themes)
-            
-        Returns:
-            JSON string with analysis results
-        """
-        
-        # Placeholder implementation
-        # In real implementation, this would call the MCP server
-        placeholder_result = {
-            "video_url": video_url,
-            "analysis_type": analysis_type,
-            "title": "Sample Video Title",
-            "description": "Sample video description...",
-            "duration": "10:30",
-            "captions": "Sample transcript content...",
-            "themes": ["adventure", "travel", "exploration"],
-            "actionable_insights": [
-                "Interest in outdoor activities",
-                "Preference for guided experiences",
-                "Focus on photography opportunities"
-            ],
-            "target_audience": "adventure seekers",
-            "mood": "excited and adventurous"
-        }
-        
-        return json.dumps(placeholder_result, indent=2)
-
-
-class ExaMCPTool(BaseTool):
-    """
-    Tool for semantic search and local experience discovery via MCP server.
-    Provides intelligent search capabilities for events and activities.
-    """
-    
-    name: str = "exa_mcp"
-    description: str = """
-    Perform semantic search for local experiences and events.
-    
-    Capabilities:
-    - Search for local events and activities
-    - Find experiences matching specific themes
-    - Discover venues and attractions
-    - Get event details and availability
-    """
-    
-    server_url: str = Field(default_factory=lambda: os.getenv("EXA_MCP_SERVER_URL", "http://localhost:8001/mcp"))
-    api_key: str = Field(default_factory=lambda: os.getenv("EXA_API_KEY", ""))
-    
-    def _run(self, query: str, location: str, date: str = None, limit: int = 10) -> str:
-        """
-        Search for local experiences via MCP server.
-        
-        Args:
-            query: Search query describing desired experiences
-            location: Target location for search
-            date: Optional target date
-            limit: Maximum number of results
-            
-        Returns:
-            JSON string with search results
-        """
-        
-        # Placeholder implementation
-        placeholder_result = {
-            "query": query,
-            "location": location,
-            "date": date,
-            "results": [
-                {
-                    "name": "Adventure Photography Workshop",
-                    "location": "Golden Gate Park",
-                    "address": "Golden Gate Park, San Francisco, CA",
-                    "date": date or "2024-01-15",
-                    "time": "2:00 PM - 5:00 PM",
-                    "price": "$75",
-                    "description": "Learn adventure photography techniques in iconic locations",
-                    "relevance_score": 0.95,
-                    "categories": ["photography", "outdoor", "workshop"],
-                    "contact": "info@adventurephoto.com",
-                    "booking_url": "https://example.com/book"
-                },
-                {
-                    "name": "Urban Exploration Tour",
-                    "location": "Mission District",
-                    "address": "Mission District, San Francisco, CA",
-                    "date": date or "2024-01-15",
-                    "time": "10:00 AM - 1:00 PM",
-                    "price": "$45",
-                    "description": "Guided tour of hidden gems and local culture",
-                    "relevance_score": 0.88,
-                    "categories": ["culture", "walking", "guided"],
-                    "contact": "tours@urbanexplorer.com",
-                    "booking_url": "https://example.com/book"
-                }
-            ]
-        }
-        
-        return json.dumps(placeholder_result, indent=2)
-
-
-class MapsMCPTool(BaseTool):
-    """
-    Tool for route planning and navigation via MCP server.
-    Provides mapping and routing capabilities.
-    """
-    
-    name: str = "maps_mcp"
-    description: str = """
-    Plan routes and get navigation information with shareable links.
-    
-    Capabilities:
-    - Calculate optimal routes between locations
-    - Get driving, walking, and transit directions
-    - Generate shareable Google Maps links for calendar integration
-    - Create complete itinerary routes with waypoints
-    - Estimate travel times and distances
-    - Find parking and accessibility information
-    """
-    
-    server_url: str = Field(default_factory=lambda: os.getenv("MAPS_MCP_SERVER_URL", "http://localhost:8003/mcp"))
-    api_key: str = Field(default_factory=lambda: os.getenv("GOOGLE_MAPS_API_KEY", ""))
-    
-    def _run(self, origin: str, destination: str, mode: str = "driving", 
-             waypoints: List[str] = None) -> str:
-        """
-        Plan route via MCP server.
-        
-        Args:
-            origin: Starting location
-            destination: Destination location
-            mode: Transportation mode (driving, walking, transit)
-            waypoints: Optional waypoints to include
-            
-        Returns:
-            JSON string with route information
-        """
-        
-        try:
-            # Prepare request data
-            request_data = {
-                "method": "directions",
-                "args": {
-                    "origin": origin,
-                    "destination": destination,
-                    "mode": mode,
-                    "waypoints": waypoints or []
-                }
-            }
-            
-            # Call MCP server
-            response = requests.post(
-                f"{self.server_url}/run",
-                json=request_data,
-                timeout=30
-            )
-            
-            response.raise_for_status()
-            result = response.json()
-            
-            if result.get("success"):
-                return json.dumps(result["data"], indent=2)
-            else:
-                return json.dumps({
-                    "error": result.get("error", "Unknown error"),
-                    "fallback": True,
-                    "message": "Using fallback data due to MCP server error"
-                }, indent=2)
-                
-        except Exception as e:
-            # Fallback to placeholder on error
-            fallback_result = {
-                "origin": origin,
-                "destination": destination,
-                "mode": mode,
-                "waypoints": waypoints or [],
-                "error": str(e),
-                "fallback": True,
-                "route": {
-                    "distance": "Estimated 12.5 miles",
-                    "duration": "Estimated 25 minutes",
-                    "steps": [
-                        {"instruction": "Route calculation failed - using estimated data", 
-                         "distance": "N/A", "duration": "N/A"}
-                    ]
-                }
-            }
-            
-            return json.dumps(fallback_result, indent=2)
-    
-    def generate_itinerary_route(self, experiences: List[Dict], start_location: str, 
-                                mode: str = "driving", optimize: bool = True) -> str:
-        """
-        Generate a complete itinerary route with shareable links for calendar integration.
-        
-        Args:
-            experiences: List of experience dictionaries with locations
-            start_location: Starting location
-            mode: Transportation mode (driving, walking, transit)
-            optimize: Whether to optimize the route order
-            
-        Returns:
-            JSON string with complete route information and shareable links
-        """
-        
-        try:
-            # Prepare request data
-            request_data = {
-                "method": "generate_itinerary_route",
-                "args": {
-                    "experiences": experiences,
-                    "start_location": start_location,
-                    "mode": mode,
-                    "optimize": optimize
-                }
-            }
-            
-            # Call MCP server
-            response = requests.post(
-                f"{self.server_url}/run",
-                json=request_data,
-                timeout=30
-            )
-            
-            response.raise_for_status()
-            result = response.json()
-            
-            if result.get("success"):
-                return json.dumps(result["data"], indent=2)
-            else:
-                return json.dumps({
-                    "error": result.get("error", "Unknown error"),
-                    "fallback": True,
-                    "message": "Failed to generate itinerary route"
-                }, indent=2)
-                
-        except Exception as e:
-            # Fallback to basic route info on error
-            fallback_result = {
-                "error": str(e),
-                "fallback": True,
-                "experiences": experiences,
-                "start_location": start_location,
-                "message": "Could not generate shareable links - using basic route info",
-                "basic_route_link": f"https://www.google.com/maps/search/{start_location.replace(' ', '+')}"
-            }
-            
-            return json.dumps(fallback_result, indent=2)
-
-
-class CalendarMCPTool(BaseTool):
-    """
-    Tool for calendar management via MCP server.
-    Provides calendar event creation and management.
-    """
-    
-    name: str = "calendar_mcp"
-    description: str = """
-    Manage calendar events and invitations.
-    
-    Capabilities:
-    - Create calendar events
-    - Send invitations to participants
-    - Check availability
-    - Set reminders and notifications
-    """
-    
-    server_url: str = Field(default_factory=lambda: os.getenv("CALENDAR_MCP_SERVER_URL", "http://localhost:8004/mcp"))
-    api_key: str = Field(default_factory=lambda: os.getenv("GOOGLE_CALENDAR_API_KEY", ""))
-    
-    def _run(self, action: str, event_data: Dict[str, Any] = None, 
-             participants: List[str] = None) -> str:
-        """
-        Manage calendar events via MCP server.
-        
-        Args:
-            action: Action to perform (create, update, delete, invite)
-            event_data: Event details dictionary
-            participants: List of participant email addresses
+            action: Action to perform (get_transcript, analyze_video, get_metadata)
+            **kwargs: Additional parameters specific to each action
             
         Returns:
             JSON string with operation results
         """
         
-        # Placeholder implementation
-        placeholder_result = {
-            "action": action,
-            "event_data": event_data or {},
-            "participants": participants or [],
-            "result": {
-                "success": True,
-                "event_id": "evt_123456789",
-                "calendar_url": "https://calendar.google.com/event?eid=123456789",
-                "invitations_sent": len(participants) if participants else 0,
-                "created_at": "2024-01-15T10:00:00Z"
-            }
-        }
-        
-        return json.dumps(placeholder_result, indent=2)
-
-
-class TTSMCPTool(BaseTool):
-    """
-    Tool for text-to-speech conversion via MCP server.
-    Provides high-quality audio generation capabilities.
-    """
+        if action == "get_transcript":
+            return self._get_transcript(**kwargs)
+        elif action == "analyze_video":
+            return self._analyze_video(**kwargs)
+        elif action == "get_metadata":
+            return self._get_metadata(**kwargs)
+        else:
+            return self._get_transcript(**kwargs)  # Default to transcript
     
-    name: str = "tts_mcp"
-    description: str = """
-    Convert text to high-quality speech audio.
-    
-    Capabilities:
-    - Generate natural-sounding speech
-    - Multiple voice options and styles
-    - Adjust speech rate and pitch
-    - Export in various audio formats
-    """
-    
-    server_url: str = Field(default_factory=lambda: os.getenv("TTS_MCP_SERVER_URL", "http://localhost:8005/mcp"))
-    api_key: str = Field(default_factory=lambda: os.getenv("ELEVENLABS_API_KEY", ""))
-    
-    def _run(self, text: str, voice: str = "default", settings: Dict[str, Any] = None) -> str:
+    def _call_ytmcp(self, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Convert text to speech via MCP server.
+        Call the ytmcp MCP server directly.
         
         Args:
-            text: Text to convert to speech
-            voice: Voice ID or name to use
-            settings: Voice settings (rate, pitch, etc.)
+            tool_name: Name of the ytmcp tool to call
+            args: Arguments for the tool
             
         Returns:
-            JSON string with audio generation results
+            Dictionary with results from ytmcp server
+        """
+        try:
+            # Prepare the command to call ytmcp
+            cmd = [sys.executable, "-m", "ytmcp", "--tool", tool_name, "--args", json.dumps(args)]
+            
+            # Execute the command
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0:
+                return json.loads(result.stdout)
+            else:
+                return {
+                    "error": f"ytmcp call failed: {result.stderr}",
+                    "tool": tool_name,
+                    "args": args
+                }
+                
+        except subprocess.TimeoutExpired:
+            return {
+                "error": "ytmcp call timed out",
+                "tool": tool_name,
+                "args": args
+            }
+        except Exception as e:
+            return {
+                "error": f"Failed to call ytmcp: {str(e)}",
+                "tool": tool_name,
+                "args": args
+            }
+    
+    def _get_transcript(self, video_url: str, language: str = "en") -> str:
+        """
+        Get transcript for a YouTube video.
+        
+        Args:
+            video_url: YouTube video URL
+            language: Language code for transcript (default: en)
+            
+        Returns:
+            JSON string with transcript data
         """
         
-        # Placeholder implementation
-        placeholder_result = {
-            "text": text[:100] + "..." if len(text) > 100 else text,
-            "voice": voice,
-            "settings": settings or {},
-            "result": {
-                "success": True,
-                "audio_url": "https://storage.example.com/audio/generated_audio_123.mp3",
-                "duration": "2:30",
-                "file_size": "2.1 MB",
-                "format": "mp3",
-                "quality": "high",
-                "generated_at": "2024-01-15T10:30:00Z"
-            }
+        args = {
+            "video_url": video_url,
+            "language": language
         }
         
-        return json.dumps(placeholder_result, indent=2)
-
-
-# Export all tools for easy importing
-__all__ = [
-    "YouTubeMCPTool",
-    "ExaMCPTool",
-    "MapsMCPTool",
-    "CalendarMCPTool",
-    "TTSMCPTool"
-]
-
-
-# Example usage and testing
-if __name__ == "__main__":
-    # Test YouTube tool
-    youtube_tool = YouTubeMCPTool()
-    result = youtube_tool._run("https://youtube.com/watch?v=example", "full")
-    print("YouTube Tool Result:")
-    print(result)
+        result = self._call_ytmcp("get_transcript", args)
+        
+        # If successful, enhance with basic analysis
+        if "error" not in result and "transcript" in result:
+            transcript_text = result.get("transcript", "")
+            
+            # Add basic analysis
+            result["analysis"] = {
+                "word_count": len(transcript_text.split()),
+                "estimated_reading_time": f"{len(transcript_text.split()) // 200} minutes",
+                "has_content": bool(transcript_text.strip())
+            }
+        
+        return json.dumps(result, indent=2)
     
-    # Test Exa tool
-    exa_tool = ExaMCPTool()
-    result = exa_tool._run("adventure photography", "San Francisco, CA", "2024-01-15")
-    print("\nExa Tool Result:")
-    print(result) 
+    def _analyze_video(self, video_url: str, analysis_type: str = "full") -> str:
+        """
+        Analyze YouTube video content by first getting transcript then analyzing.
+        
+        Args:
+            video_url: YouTube video URL to analyze
+            analysis_type: Type of analysis (full, themes, insights)
+            
+        Returns:
+            JSON string with analysis results
+        """
+        
+        # First get the transcript
+        transcript_result = self._call_ytmcp("get_transcript", {"video_url": video_url})
+        
+        if "error" in transcript_result:
+            return json.dumps(transcript_result, indent=2)
+        
+        transcript_text = transcript_result.get("transcript", "")
+        
+        # Perform basic analysis on the transcript
+        analysis = {
+            "video_url": video_url,
+            "analysis_type": analysis_type,
+            "transcript_available": bool(transcript_text.strip()),
+            "word_count": len(transcript_text.split()),
+            "estimated_duration": transcript_result.get("duration", "Unknown"),
+            "language": transcript_result.get("language", "en")
+        }
+        
+        if transcript_text.strip():
+            # Basic keyword/theme extraction
+            common_words = self._extract_keywords(transcript_text)
+            analysis["themes"] = common_words[:10]  # Top 10 keywords as themes
+            
+            # Basic insights
+            analysis["insights"] = self._generate_insights(transcript_text)
+        
+        # Combine transcript and analysis
+        result = {
+            "transcript_data": transcript_result,
+            "analysis": analysis
+        }
+        
+        return json.dumps(result, indent=2)
+    
+    def _get_metadata(self, video_url: str) -> str:
+        """
+        Get video metadata via ytmcp.
+        
+        Args:
+            video_url: YouTube video URL
+            
+        Returns:
+            JSON string with metadata
+        """
+        
+        args = {"video_url": video_url}
+        result = self._call_ytmcp("get_metadata", args)
+        
+        return json.dumps(result, indent=2)
+    
+    def _extract_keywords(self, text: str) -> List[str]:
+        """
+        Extract keywords from transcript text.
+        
+        Args:
+            text: Transcript text
+            
+        Returns:
+            List of keywords
+        """
+        # Simple keyword extraction
+        import re
+        from collections import Counter
+        
+        # Remove common stop words
+        stop_words = {
+            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+            'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
+            'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those',
+            'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your',
+            'his', 'her', 'its', 'our', 'their', 'so', 'if', 'when', 'where', 'why', 'how', 'what', 'who'
+        }
+        
+        # Extract words
+        words = re.findall(r'\b[a-zA-Z]+\b', text.lower())
+        
+        # Filter out stop words and short words
+        filtered_words = [word for word in words if word not in stop_words and len(word) > 3]
+        
+        # Count frequency
+        word_counts = Counter(filtered_words)
+        
+        # Return top keywords
+        return [word for word, count in word_counts.most_common(20)]
+    
+    def _generate_insights(self, text: str) -> List[str]:
+        """
+        Generate basic insights from transcript.
+        
+        Args:
+            text: Transcript text
+            
+        Returns:
+            List of insights
+        """
+        insights = []
+        
+        # Content length insight
+        word_count = len(text.split())
+        if word_count > 1000:
+            insights.append("Long-form content - suitable for detailed analysis")
+        elif word_count > 500:
+            insights.append("Medium-length content - good for topic exploration")
+        else:
+            insights.append("Short content - likely focused on specific topic")
+        
+        # Question detection
+        question_count = text.count('?')
+        if question_count > 5:
+            insights.append("Interactive content with audience engagement")
+        
+        # Instructional content detection
+        instructional_keywords = ['how to', 'step by step', 'tutorial', 'guide', 'learn', 'teaching']
+        if any(keyword in text.lower() for keyword in instructional_keywords):
+            insights.append("Educational/instructional content detected")
+        
+        # Travel/adventure content detection
+        travel_keywords = ['travel', 'adventure', 'explore', 'journey', 'visit', 'destination']
+        if any(keyword in text.lower() for keyword in travel_keywords):
+            insights.append("Travel/adventure content - suitable for experience planning")
+        
+        return insights 

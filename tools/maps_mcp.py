@@ -98,7 +98,8 @@ def maps_itinerary_route(origin: str, destinations: List[str], mode: str = "driv
         
         current_location = origin
         for i, dest in enumerate(destinations):
-            leg_data = maps_route(current_location, dest, mode)
+            # Get leg data using the function directly
+            leg_data = maps_route.func(current_location, dest, mode)
             
             # Extract numeric values for totals (simplified)
             distance_val = 5.0 + i * 2.0  # Estimated
@@ -109,7 +110,7 @@ def maps_itinerary_route(origin: str, destinations: List[str], mode: str = "driv
                 "destination": dest,
                 "distance": f"{distance_val} miles",
                 "duration": f"{duration_val} mins",
-                "shareable_link": maps_generate_shareable_link(current_location, dest)
+                "shareable_link": maps_generate_shareable_link.func(current_location, dest)
             })
             
             total_distance += distance_val
@@ -123,7 +124,7 @@ def maps_itinerary_route(origin: str, destinations: List[str], mode: str = "driv
             "total_distance": f"{total_distance:.1f} miles",
             "total_duration": f"{total_duration} mins",
             "legs": legs,
-            "complete_route_link": maps_generate_shareable_link(origin, destinations[-1], destinations[:-1]),
+            "complete_route_link": maps_generate_shareable_link.func(origin, destinations[-1], destinations[:-1]),
             "error": str(e),
             "fallback": True
         }
